@@ -1,0 +1,180 @@
+# Loan Manager — ניהול השאלות והטמעות
+
+Management app for implementation and equipment loans to military units.
+All data is organised by **project**: each project owns its own items (with a
+Type/Model/Serial/Status/Location), the loans made from them, and the feedback
+each borrowing location gave — with the time it was given.
+
+- **Backend:** Python / FastAPI, talking to Supabase (Postgres)
+- **Frontend:** React + TypeScript + Vite, Hebrew RTL interface
+- **Auth:** none yet — see [Security](#security) before putting this on a network
+
+---
+
+## Data model
+
+```
+item_types ─< item_models
+
+projects ──┬─< items >── type_id / model_id / status_id / location_id
+           │
+           ├─< loans >── item_id, location_id
+           │
+           └─< feedback >── location_id
+                   │
+                   └─ loan_id (nullable: feedback on one loan, or on the project)
+```
+
+| Table            | What it holds                                                              |
+| ---------------- | --------------------------------------------------------------------------- |
+| `projects`       | Top-level grouping. Everything else hangs off a project.                    |
+| `item_types`     | The Type dropdown's options (e.g. קשר, מחשוב). Managed from Settings.       |
+| `item_models`    | The Model dropdown's options, each tied to one type. Managed from Settings. |
+| `item_statuses`  | The Status dropdown's options (e.g. בשימוש, במחסן). Managed from Settings.  |
+| `locations`      | Everywhere an item can be — a borrowing unit or a warehouse. Managed from Settings. |
+| `items`          | One row per physical item, owned by exactly one project. Type/Model/Status/Location + a free-text serial. |
+| `loans`          | "Item X was loaned to location Y under project Z", with dates + status — separate from the item's own status/location. |
+| `feedback`       | What a location said, when they said it, optionally about one loan.         |
+
+`is_overdue` is **derived at read time** (`status = 'loaned' AND due_at < now()`),
+never stored — so it cannot go stale.
+
+---
+
+## First-time setup
+
+### 1. Create the database schema
+
+In the Supabase dashboard → **SQL Editor** → **New query**, paste and run:
+
+1. `supabase/schema.sql` — tables, indexes, triggers, RLS
+2. `supabase/seed.sql` — *optional* demo rows, so the UI isn't empty on first run
+
+### 2. Configure the backend
+
+```powershell
+cd backend
+Copy-Item .env.example .env
+```
+
+Open `backend/.env` and fill in, from **Supabase → Project Settings → API**:
+
+- `SUPABASE_URL` — your project URL
+- `SUPABASE_SERVICE_KEY` — the **`service_role`** key (not `anon`)
+
+`backend/.env` is gitignored. Keep it that way.
+
+### 3. Install dependencies
+
+Already done once, but to reproduce on another machine:
+
+```powershell
+# Backend
+cd backend
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# Frontend
+cd ..\frontend
+npm install
+```
+
+---
+
+## Running it
+
+Two terminals, both from the repo root.
+
+**Terminal 1 — API** (http://127.0.0.1:8000, docs at `/docs`):
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+**Terminal 2 — UI** (http://localhost:5173):
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Then open **http://localhost:5173**. Vite proxies `/api` to the backend, so the
+browser only ever talks to one origin.
+
+> Or just run `.\run-dev.ps1` from the repo root to start both at once.
+
+---
+
+## Using it
+
+1. **הגדרות** — set up the dropdown option lists once: Types, Models (each tied
+   to a type), Statuses, and Locations (units, warehouses, ...).
+2. **פרויקטים** — create a project, open it, then:
+   - **+ פריט חדש** adds an item to *this* project (Type/Model/Serial/Status/Location).
+   - **+ השאלה חדשה** records one of the project's items loaned to a location.
+   - **+ משוב חדש** records what a location said, and when.
+
+Rows turn red when a loan is past its due date. **סמן כהוחזר** closes a loan and
+stamps the return time.
+
+---
+
+## Testing
+
+`backend/smoke_test.py` exercises the whole API against your real Supabase
+project — create a project, loan an item, log feedback, mark it returned, check
+the overdue computation and the foreign-key guards — then deletes everything it
+created. Existing rows are read but never modified.
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe smoke_test.py
+```
+
+Run it after any schema or router change. It exits non-zero on failure.
+
+---
+
+## API
+
+Interactive docs at http://127.0.0.1:8000/docs.
+
+| Method             | Path                            | Purpose                                  |
+| ------------------ | ------------------------------- | ---------------------------------------- |
+| `GET`              | `/api/projects`                 | Projects with loan/overdue/feedback counts |
+| `GET`              | `/api/projects/{id}/detail`     | Project + its items + its loans + its feedback, one call |
+| `POST`             | `/api/projects/{id}/archive`, `/unarchive` | Move a project in or out of the archive |
+| `GET/POST/PATCH/DELETE` | `/api/items`                | Filter list by `project_id`              |
+| `GET/POST`         | `/api/loans`                    | Filter by `project_id`, `location_id`, `item_id`, `status` |
+| `POST`             | `/api/loans/{id}/return`        | Mark returned, stamped now               |
+| `GET/POST`         | `/api/feedback`                 | Filter by `project_id`, `location_id`, `loan_id` |
+| `GET/POST/PATCH/DELETE` | `/api/item-types`, `/api/item-models`, `/api/item-statuses`, `/api/locations` | Dropdown option lists, managed from Settings |
+
+---
+
+## Security
+
+This is currently a **single-user local app with no authentication**. Anyone who
+can reach port 5173 or 8000 has full read/write access.
+
+What is already in place:
+
+- RLS is enabled on every table with **no policies**, so the public `anon` key
+  can read nothing. The database is only reachable through this API.
+- The `service_role` key lives only in `backend/.env`, server-side.
+
+Before this goes anywhere beyond your own machine, it needs Supabase Auth,
+per-user RLS policies, and HTTPS. Don't bind it to `0.0.0.0` until then.
+
+---
+
+## Repository
+
+Git is initialised locally with a `main` branch. Nothing is pushed — add your
+remote and push branches yourself when you're ready:
+
+```powershell
+git remote add origin https://github.com/<you>/<repo>.git
+git push -u origin main
+```
