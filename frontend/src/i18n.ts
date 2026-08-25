@@ -21,20 +21,15 @@ export const t = {
     edit: "עריכה",
     loading: "טוען…",
     search: "חיפוש",
-    all: "הכול",
     none: "—",
     confirmDelete: "האם למחוק? הפעולה אינה הפיכה.",
     required: "שדה חובה",
     back: "חזרה",
     retry: "נסה שוב",
-    clearFilter: "נקה סינון",
     updated: "עודכן",
   },
 
   shell: {
-    overdueTitle: "השאלות באיחור",
-    overdueScope: (projects: number) =>
-      projects === 1 ? "מפרויקט אחד" : `מ־${projects} פרויקטים`,
     settings: "הגדרות",
     signOut: "יציאה",
   },
@@ -62,14 +57,12 @@ export const t = {
     emptyArchived: "אין פרויקטים בארכיון.",
     archive: "העבר לארכיון",
     unarchive: "שחזר מהארכיון",
+    deleteProject: "מחק פרויקט",
+    deleteConfirmTitle: "מחיקת הפרויקט",
+    deleteConfirmMessage: (name: string) =>
+      `למחוק את הפרויקט "${name}"? כל הפריטים, ההשאלות והמשובים שלו יימחקו לצמיתות. הפעולה אינה הפיכה.`,
     showArchived: "בארכיון",
     hideArchived: "פעילים",
-    overdueBanner: (loans: number) =>
-      loans === 1
-        ? "השאלה אחת עברה את תאריך ההחזרה הצפוי"
-        : `${loans} השאלות עברו את תאריך ההחזרה הצפוי`,
-    overdueBannerAction: "הצג פרויקטים באיחור",
-    emptyOverdue: "אין פרויקטים עם השאלות באיחור.",
     statusLabels: {
       active: "פעיל",
       completed: "הושלם",
@@ -78,7 +71,6 @@ export const t = {
     stats: {
       loans: "השאלות",
       open: "פתוחות",
-      overdue: "באיחור",
       feedback: "משובים",
       /** Longer forms, for the project-detail stat strip. */
       items: "פריטים בפרויקט",
@@ -110,15 +102,12 @@ export const t = {
     quantity: "כמות",
     status: "סטטוס",
     loanedAt: "תאריך השאלה",
-    dueAt: "תאריך החזרה צפוי",
     returnedAt: "הוחזר בתאריך",
     notes: "הערות",
     markReturned: "סמן כהוחזר",
-    overdue: "באיחור",
     empty: "לא הושאלו פריטים בפרויקט זה.",
     noItems: "אין עדיין פריטים בפרויקט זה — הוסף פריט תחילה.",
     noLocations: "אין מיקומים רשומים — הוסף מיקום בעמוד ״הגדרות״ תחילה.",
-    dueBeforeLoaned: "תאריך ההחזרה הצפוי חייב להיות אחרי תאריך ההשאלה.",
     statusLabels: {
       loaned: "מושאל",
       returned: "הוחזר",
@@ -201,11 +190,9 @@ export const t = {
     /* The directory screen reached from the sidebar. */
     title: "מיקומים",
     subtitle: "יחידות ומחסנים — היכן שנמצא כל ציוד",
-    affiliation: "שייכות",
     itemCount: "פריטים",
     itemsHere: "פריטים כאן",
     openLoans: "השאלות פתוחות",
-    overdue: "באיחור",
     contact: "איש קשר",
     stock: "ציוד במיקום",
     stockEmpty: "אין פריטים רשומים במיקום זה.",
@@ -226,6 +213,7 @@ export const t = {
     edit: "עריכת מיקום",
     empty: "אין עדיין מיקומים.",
     noMatches: "אין מיקומים התואמים לסינון.",
+    battalionCount: (n: number) => (n === 1 ? "גדוד אחד" : `${n} גדודים`),
   },
 
   /** The one-location screen; "unit" is what a location of kind יחידה is called. */

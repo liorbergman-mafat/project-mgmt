@@ -10,8 +10,6 @@ behaviour the UI depends on, then deletes everything it made. Existing data is
 read but never modified. Exits non-zero if anything fails.
 """
 
-from datetime import datetime, timedelta, timezone
-
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -86,7 +84,6 @@ r = client.get(f"/api/items?project_id={created['project']}")
 check("GET /api/items filters by project_id", any(i["id"] == created["item"] for i in r.json()), r.text)
 
 # 4. loan the item ------------------------------------------------------
-overdue_due = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
 r = client.post(
     "/api/loans",
     json={
@@ -94,7 +91,6 @@ r = client.post(
         "item_id": created["item"],
         "location_id": created["location"],
         "quantity": 7,
-        "due_at": overdue_due,
         "notes": "smoke test",
     },
 )
@@ -103,7 +99,6 @@ loan = r.json()
 created["loan"] = loan["id"]
 check("loan embeds item.serial_id", (loan.get("item") or {}).get("serial_id") == "SMOKE-1", str(loan.get("item")))
 check("loan embeds location", (loan.get("location") or {}).get("name") == "בדיקה — מיקום", str(loan.get("location")))
-check("is_overdue computed true for past due_at", loan["is_overdue"] is True, str(loan["is_overdue"]))
 
 # 5. feedback -------------------------------------------------------------
 r = client.post(
@@ -140,7 +135,6 @@ check("detail.feedback has our feedback", any(f["id"] == created["feedback"] for
 r = client.get("/api/projects")
 mine = next(p for p in r.json() if p["id"] == created["project"])
 check("loan_count = 1", mine["loan_count"] == 1, str(mine["loan_count"]))
-check("overdue_count = 1", mine["overdue_count"] == 1, str(mine["overdue_count"]))
 check("feedback_count = 1", mine["feedback_count"] == 1, str(mine["feedback_count"]))
 
 # 8. FK protection ----------------------------------------------------------
@@ -156,7 +150,6 @@ check("POST /api/loans/{id}/return", r.status_code == 200, r.text)
 returned = r.json()
 check("status becomes returned", returned["status"] == "returned", returned["status"])
 check("returned_at stamped", bool(returned["returned_at"]), str(returned["returned_at"]))
-check("is_overdue false once returned", returned["is_overdue"] is False, str(returned["is_overdue"]))
 
 # 10. 404 handling ----------------------------------------------------------
 r = client.get("/api/projects/00000000-0000-0000-0000-000000000000")

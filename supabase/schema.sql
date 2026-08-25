@@ -122,15 +122,11 @@ create table if not exists loans (
     status      text        not null default 'loaned'
                             check (status in ('loaned', 'returned', 'lost')),
     loaned_at   timestamptz not null default now(),
-    due_at      timestamptz,
     returned_at timestamptz,
     notes       text,
     created_at  timestamptz not null default now(),
     updated_at  timestamptz not null default now()
 );
-
--- "Overdue" is deliberately NOT a stored status — it is derived at read time
--- from (status = 'loaned' and due_at < now()), so it can never go stale.
 
 -- ---------------------------------------------------------------------------
 -- feedback — what the borrowing location said, and when they said it.

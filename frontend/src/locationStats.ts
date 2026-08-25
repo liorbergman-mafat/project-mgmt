@@ -13,7 +13,6 @@ import type { Feedback, Item, Loan, Location } from "./types";
 export interface LocationStats {
   itemCount: number;
   openLoans: number;
-  overdue: number;
   /** What is here, by type + model, commonest first. */
   stock: { label: string; count: number }[];
   lastFeedback: Feedback | null;
@@ -22,7 +21,6 @@ export interface LocationStats {
 const EMPTY: LocationStats = {
   itemCount: 0,
   openLoans: 0,
-  overdue: 0,
   stock: [],
   lastFeedback: null,
 };
@@ -42,7 +40,7 @@ export function buildLocationStats(
   const bucket = (locationId: string): LocationStats => {
     let entry = stats.get(locationId);
     if (!entry) {
-      entry = { itemCount: 0, openLoans: 0, overdue: 0, stock: [], lastFeedback: null };
+      entry = { itemCount: 0, openLoans: 0, stock: [], lastFeedback: null };
       stats.set(locationId, entry);
     }
     return entry;
@@ -63,7 +61,6 @@ export function buildLocationStats(
   for (const loan of loans) {
     const entry = bucket(loan.location_id);
     if (loan.status === "loaned") entry.openLoans += 1;
-    if (loan.is_overdue) entry.overdue += 1;
   }
 
   for (const entry of feedback) {

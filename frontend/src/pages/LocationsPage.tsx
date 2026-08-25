@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAsync } from "../hooks";
 import { formatRelative, itemLabel, t } from "../i18n";
-import { options, sortCategories } from "../locationGrouping";
+import { groupByBrigade, options, sortCategories } from "../locationGrouping";
 import { affiliation, buildLocationStats, emptyStats } from "../locationStats";
 import type { LocationStats } from "../locationStats";
 import { useShell } from "../shellData";
@@ -17,6 +17,13 @@ import {
   Stars,
 } from "../components/ui";
 import type { Item, Location, ProjectSummary } from "../types";
+
+/**
+ * Same defaults and fallback behaviour as the Settings locations tab, so the
+ * two screens filter identically — see SettingsPage.tsx's LocationsPanel.
+ */
+const DEFAULT_KIND = "יחידה";
+const DEFAULT_CATEGORY = "סדיר קחצ״ר";
 
 /* ========================================================================
  * The directory: every location on the left, a drill-down on the right.
@@ -34,51 +41,65 @@ export function LocationsPage() {
   );
 
   // The full directory runs to a few hundred rows, so it opens with the two
-  // filters the rest of the app narrows locations by.
-  const [kind, setKind] = useState("");
-  const [category, setCategory] = useState("");
+  // filters the rest of the app narrows locations by — same logic as the
+  // Settings locations tab: no "all" option, default kind/category with a
+  // fallback to the first option that actually exists in this deployment.
+  const [kind, setKind] = useState(DEFAULT_KIND);
+  const [category, setCategory] = useState(DEFAULT_CATEGORY);
   const all = data ?? [];
 
   const kinds = useMemo(
-    () => [
-      { key: "", label: t.common.all },
-      ...options(all, (row) => row.kind).map((value) => ({ key: value, label: value })),
-    ],
+    () => options(all, (row) => row.kind).map((value) => ({ key: value, label: value })),
     [all],
   );
 
-  const categories = useMemo(() => {
-    const inKind = kind ? all.filter((row) => row.kind === kind) : all;
-    return [
-      { key: "", label: t.common.all },
-      ...sortCategories(options(inKind, (row) => row.category)).map((value) => ({
-        key: value,
-        label: value,
-      })),
-    ];
-  }, [all, kind]);
+  const activeKind = kinds.some((k) => k.key === kind) ? kind : (kinds[0]?.key ?? "");
 
-  const visible = useMemo(
+  const categories = useMemo(
     () =>
-      all.filter(
-        (row) => (!kind || row.kind === kind) && (!category || row.category === category),
-      ),
-    [all, kind, category],
+      sortCategories(
+        options(
+          all.filter((row) => row.kind === activeKind),
+          (row) => row.category,
+        ),
+      ).map((value) => ({ key: value, label: value })),
+    [all, activeKind],
   );
 
+  const activeCategory = categories.some((c) => c.key === category)
+    ? category
+    : (categories[0]?.key ?? "");
+
+  const visible = all.filter(
+    (row) => row.kind === activeKind && row.category === activeCategory,
+  );
+
+  // A category can span hundreds of battalions/units, so they open bucketed
+  // by brigade, collapsed, rather than as one long flat table.
+  const groups = useMemo(() => groupByBrigade(visible), [visible]);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+
+  function toggleGroup(key: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  }
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // A row that has been filtered away cannot stay selected.
-  const selected = visible.find((row) => row.id === selectedId) ?? visible[0] ?? null;
+  // Only a row inside an expanded group can be selected — a group that
+  // collapses again takes its selection (and the panel) with it.
+  const expandedRows = useMemo(
+    () => groups.filter((g) => open.has(g.key)).flatMap((g) => g.rows),
+    [groups, open],
+  );
+  const selected = expandedRows.find((row) => row.id === selectedId) ?? null;
   const [creating, setCreating] = useState(false);
 
-  function selectKind(next: string) {
-    setKind(next);
-    // The chosen category may not exist under the new kind.
-    const stillValid = (next ? all.filter((row) => row.kind === next) : all).some(
-      (row) => row.category === category,
-    );
-    if (!stillValid) setCategory("");
-  }
+  // Switching kind can leave the current category with no rows under it —
+  // `activeCategory` above then falls back to that kind's first category.
+  const selectKind = setKind;
 
   return (
     <>
@@ -103,14 +124,14 @@ export function LocationsPage() {
           <FilterChips
             label={t.locations.kind}
             values={kinds}
-            selected={kind}
+            selected={activeKind}
             onSelect={selectKind}
           />
-          {categories.length > 2 && (
+          {categories.length > 1 && (
             <FilterChips
               label={t.locations.category}
               values={categories}
-              selected={category}
+              selected={activeCategory}
               onSelect={setCategory}
             />
           )}
@@ -128,36 +149,53 @@ export function LocationsPage() {
                   <tr>
                     <th>{t.locations.name}</th>
                     <th>{t.locations.kind}</th>
-                    <th>{t.locations.affiliation}</th>
+                    <th>{t.locations.battalion}</th>
                     <th>{t.locations.itemCount}</th>
                     <th>{t.locations.openLoans}</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {visible.map((row) => {
-                    const stat = stats.get(row.id) ?? emptyStats();
-                    return (
-                      <tr
-                        key={row.id}
-                        className={`selectable${selected?.id === row.id ? " row-selected" : ""}`}
-                        onClick={() => setSelectedId(row.id)}
-                      >
-                        <td className="strong">{row.name}</td>
-                        <td style={{ color: "var(--slate)" }}>{row.kind ?? t.common.none}</td>
-                        <td style={{ color: "var(--slate)" }}>
-                          {affiliation(row) || t.common.none}
-                        </td>
-                        <td className="num">{stat.itemCount}</td>
-                        <td
-                          className="num strong"
-                          style={{ color: stat.overdue > 0 ? "var(--red)" : undefined }}
+                {groups.map((group) => (
+                  <tbody key={group.key}>
+                    <tr className="group-row">
+                      <td colSpan={5}>
+                        <button
+                          type="button"
+                          className="group-toggle"
+                          aria-expanded={open.has(group.key)}
+                          onClick={() => toggleGroup(group.key)}
                         >
-                          {stat.openLoans}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
+                          <span className="chevron" aria-hidden="true">
+                            {open.has(group.key) ? "▾" : "▸"}
+                          </span>
+                          <span>{group.label}</span>
+                          <span className="group-count">
+                            {t.locations.battalionCount(group.rows.length)}
+                          </span>
+                        </button>
+                      </td>
+                    </tr>
+
+                    {open.has(group.key) &&
+                      group.rows.map((row) => {
+                        const stat = stats.get(row.id) ?? emptyStats();
+                        return (
+                          <tr
+                            key={row.id}
+                            className={`selectable${selected?.id === row.id ? " row-selected" : ""}`}
+                            onClick={() => setSelectedId(row.id)}
+                          >
+                            <td className="strong">{row.name}</td>
+                            <td style={{ color: "var(--slate)" }}>{row.kind ?? t.common.none}</td>
+                            <td style={{ color: "var(--slate)" }}>
+                              {row.battalion ?? t.common.none}
+                            </td>
+                            <td className="num">{stat.itemCount}</td>
+                            <td className="num strong">{stat.openLoans}</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                ))}
               </table>
             </div>
           </div>
@@ -173,6 +211,8 @@ export function LocationsPage() {
           onSaved={(saved) => {
             setCreating(false);
             setSelectedId(saved.id);
+            // Jump straight to the new row, wherever its brigade group is.
+            setOpen((prev) => new Set(prev).add(`${saved.category ?? ""} ${saved.brigade ?? ""}`));
             reload();
           }}
         />
@@ -202,8 +242,8 @@ function LocationPanel({
           <div className="value num">{stat.itemCount}</div>
         </div>
         <div className="panel-stat">
-          <div className="label">{t.locations.overdue}</div>
-          <div className={`value num${stat.overdue > 0 ? " alert" : ""}`}>{stat.overdue}</div>
+          <div className="label">{t.locations.openLoans}</div>
+          <div className="value num">{stat.openLoans}</div>
         </div>
       </div>
 

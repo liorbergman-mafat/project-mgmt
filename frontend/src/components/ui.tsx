@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { t } from "../i18n";
 
 /* -------------------------------------------------------------------------
@@ -57,6 +57,64 @@ export function FormActions({
         {t.common.cancel}
       </button>
     </footer>
+  );
+}
+
+/* -------------------------------------------------------------------------
+ * ConfirmModal — an "are you sure?" dialog for destructive actions that are
+ * too consequential for a bare window.confirm() (e.g. deleting a whole
+ * project). Shows its own error banner if the confirmed action throws.
+ * ---------------------------------------------------------------------- */
+export function ConfirmModal({
+  title,
+  message,
+  confirmLabel,
+  danger,
+  onConfirm,
+  onClose,
+}: {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  /** Red confirm button for irreversible/destructive actions. Defaults to true. */
+  danger?: boolean;
+  onConfirm: () => void | Promise<void>;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirm() {
+    setBusy(true);
+    setError(null);
+    try {
+      await onConfirm();
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={title} onClose={onClose}>
+      <div className="form-body single">
+        <p>{message}</p>
+        {error && <ErrorBanner error={error} />}
+      </div>
+      <footer className="form-actions">
+        <button
+          type="button"
+          className={`btn ${danger === false ? "btn-primary" : "btn-danger"}`}
+          disabled={busy}
+          onClick={confirm}
+        >
+          {busy ? t.common.loading : (confirmLabel ?? t.common.delete)}
+        </button>
+        <button type="button" className="btn btn-secondary" disabled={busy} onClick={onClose}>
+          {t.common.cancel}
+        </button>
+      </footer>
+    </Modal>
   );
 }
 

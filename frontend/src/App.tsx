@@ -58,8 +58,6 @@ function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
   // Archived projects are out of sight on the list, so they are out of the
   // sidebar count too.
   const activeProjects = (projects.data ?? []).filter((p) => p.status !== "archived");
-  const overdueLoans = activeProjects.reduce((sum, p) => sum + p.overdue_count, 0);
-  const overdueProjects = activeProjects.filter((p) => p.overdue_count > 0).length;
 
   const onSettings = pathname.startsWith("/settings");
 
@@ -83,14 +81,6 @@ function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
           </nav>
 
           <div className="sidebar-foot">
-            <div className="overdue-callout">
-              <div className="overdue-callout-label">{t.shell.overdueTitle}</div>
-              <div className="overdue-callout-value">
-                <strong className="num">{overdueLoans}</strong>
-                <span>{t.shell.overdueScope(overdueProjects)}</span>
-              </div>
-            </div>
-
             <div className="user-row">
               <span className="avatar" aria-hidden="true">
                 {initials(user)}

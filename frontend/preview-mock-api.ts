@@ -80,19 +80,19 @@ const locations: Location[] = [
 const byId = new Map(locations.map((row) => [row.id, row]));
 
 /* --------------------------------------------------------------- projects */
-type Row = [string, string, string, ProjectSummary["status"], number, number, number, number];
+type Row = [string, string, string, ProjectSummary["status"], number, number, number];
 
 const PROJECT_ROWS: Row[] = [
-  ["p-1", "מבצע נושמת", "הטמעת מערכות קשר בגדוד קחצ״ר", "active", 5, 3, 2, 3],
-  ["p-2", "פרויקט רקיע", "ניסוי ציוד ניווט ביחידות המוסף", "active", 2, 1, 0, 1],
-  ["p-3", "מסע ארוך", "הטמעת עמדות מחשוב במפ״ק וביחידותיו", "active", 1, 1, 1, 1],
-  ["p-4", "מחלף כחול", "פיילוט מחשבי רגד ביחידות ההטמעה", "active", 0, 0, 0, 0],
-  ["p-5", "פרויקט צוק", "החזרת ציוד קשר למחסן בסיום", "completed", 0, 0, 0, 1],
-  ["p-6", "תום", "הטמעת ניווט בין רצועות", "archived", 0, 0, 0, 0],
+  ["p-1", "מבצע נושמת", "הטמעת מערכות קשר בגדוד קחצ״ר", "active", 5, 3, 3],
+  ["p-2", "פרויקט רקיע", "ניסוי ציוד ניווט ביחידות המוסף", "active", 2, 1, 1],
+  ["p-3", "מסע ארוך", "הטמעת עמדות מחשוב במפ״ק וביחידותיו", "active", 1, 1, 1],
+  ["p-4", "מחלף כחול", "פיילוט מחשבי רגד ביחידות ההטמעה", "active", 0, 0, 0],
+  ["p-5", "פרויקט צוק", "החזרת ציוד קשר למחסן בסיום", "completed", 0, 0, 1],
+  ["p-6", "תום", "הטמעת ניווט בין רצועות", "archived", 0, 0, 0],
 ];
 
 const projects: ProjectSummary[] = PROJECT_ROWS.map(
-  ([id, name, description, status, loan_count, open_loan_count, overdue_count, feedback_count]) => ({
+  ([id, name, description, status, loan_count, open_loan_count, feedback_count]) => ({
     id,
     name,
     description,
@@ -101,7 +101,6 @@ const projects: ProjectSummary[] = PROJECT_ROWS.map(
     updated_at: iso(3),
     loan_count,
     open_loan_count,
-    overdue_count,
     feedback_count,
   }),
 );
@@ -154,7 +153,6 @@ function loan(
   quantity: number,
   status: Loan["status"],
   loanedDaysAgo: number,
-  dueDaysAgo: number | null,
   returnedDaysAgo: number | null,
   notes: string | null,
 ): Loan {
@@ -166,26 +164,23 @@ function loan(
     quantity,
     status,
     loaned_at: iso(loanedDaysAgo),
-    due_at: dueDaysAgo === null ? null : iso(dueDaysAgo),
     returned_at: returnedDaysAgo === null ? null : iso(returnedDaysAgo),
     notes,
     created_at: iso(loanedDaysAgo),
     updated_at: iso(1),
-    // Derived server-side at read time: loaned, and past its due date.
-    is_overdue: status === "loaned" && dueDaysAgo !== null && dueDaysAgo > 0,
     item: items.find((row) => row.id === itemId) ?? null,
     location: byId.get(locationId) ?? null,
   };
 }
 
 const loans: Loan[] = [
-  loan("ln-1", "p-1", "it-1", "id-0", 4, "loaned", 54, 10, null, "נמסר לרס״ר בפגישת התיאום בבקיר."),
-  loan("ln-2", "p-1", "it-6", "id-1", 2, "loaned", 44, 5, null, null),
-  loan("ln-3", "p-1", "it-5", "id-1", 1, "loaned", 24, -36, null, null),
-  loan("ln-4", "p-1", "it-4", "id-2", 3, "returned", 68, -46, 40, null),
-  loan("ln-5", "p-1", "it-2", "id-0", 6, "returned", 97, -55, 50, null),
-  loan("ln-6", "p-2", "it-7", "id-3", 1, "loaned", 30, -60, null, null),
-  loan("ln-7", "p-3", "it-8", "id-2", 2, "loaned", 40, 3, null, null),
+  loan("ln-1", "p-1", "it-1", "id-0", 4, "loaned", 54, null, "נמסר לרס״ר בפגישת התיאום בבקיר."),
+  loan("ln-2", "p-1", "it-6", "id-1", 2, "loaned", 44, null, null),
+  loan("ln-3", "p-1", "it-5", "id-1", 1, "loaned", 24, null, null),
+  loan("ln-4", "p-1", "it-4", "id-2", 3, "returned", 68, 40, null),
+  loan("ln-5", "p-1", "it-2", "id-0", 6, "returned", 97, 50, null),
+  loan("ln-6", "p-2", "it-7", "id-3", 1, "loaned", 30, null, null),
+  loan("ln-7", "p-3", "it-8", "id-2", 2, "loaned", 40, null, null),
 ];
 
 /* --------------------------------------------------------------- feedback */

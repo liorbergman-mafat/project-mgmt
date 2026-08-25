@@ -34,14 +34,10 @@ export default function ProjectsPage() {
 
   const [creating, setCreating] = useState(false);
   const [scope, setScope] = useState<Scope>("live");
-  // Set from the overdue banner, to jump straight to what is late.
-  const [onlyOverdue, setOnlyOverdue] = useState(false);
 
-  const inScope = (data ?? []).filter((project) =>
+  const visible = (data ?? []).filter((project) =>
     scope === "archived" ? project.status === "archived" : project.status !== "archived",
   );
-  const overdueLoans = inScope.reduce((sum, project) => sum + project.overdue_count, 0);
-  const visible = onlyOverdue ? inScope.filter((project) => project.overdue_count > 0) : inScope;
 
   return (
     <>
@@ -68,31 +64,9 @@ export default function ProjectsPage() {
       {error && <ErrorBanner error={error} onRetry={reload} />}
       {loading && <Spinner />}
 
-      {overdueLoans > 0 && (
-        <div className="alert-banner">
-          <span className="alert-dot" aria-hidden="true" />
-          <span>{t.projects.overdueBanner(overdueLoans)}</span>
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              setOnlyOverdue((on) => !on);
-            }}
-          >
-            {onlyOverdue ? t.common.clearFilter : t.projects.overdueBannerAction}
-          </a>
-        </div>
-      )}
-
       {data && visible.length === 0 && (
         <EmptyState
-          message={
-            onlyOverdue
-              ? t.projects.emptyOverdue
-              : scope === "archived"
-                ? t.projects.emptyArchived
-                : t.projects.empty
-          }
+          message={scope === "archived" ? t.projects.emptyArchived : t.projects.empty}
         />
       )}
 
@@ -131,21 +105,16 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
       <div className="project-card-stats">
         <Stat label={t.projects.stats.loans} value={project.loan_count} />
         <Stat label={t.projects.stats.open} value={project.open_loan_count} />
-        <Stat
-          label={t.projects.stats.overdue}
-          value={project.overdue_count}
-          alert={project.overdue_count > 0}
-        />
         <Stat label={t.projects.stats.feedback} value={project.feedback_count} />
       </div>
     </Link>
   );
 }
 
-function Stat({ label, value, alert }: { label: string; value: number; alert?: boolean }) {
+function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <div className={`value num${alert ? " alert" : ""}`}>{value}</div>
+      <div className="value num">{value}</div>
       <div className="label">{label}</div>
     </div>
   );

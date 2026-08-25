@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter
@@ -37,27 +36,20 @@ def list_projects(status: ProjectStatus | None = None) -> list[ProjectSummary]:
         query = query.eq("status", status)
     projects = rows(query.execute())
 
-    loans = rows(table("loans").select("project_id, status, due_at").execute())
+    loans = rows(table("loans").select("project_id, status").execute())
     feedback = rows(table("feedback").select("project_id").execute())
 
-    now = datetime.now(timezone.utc)
     summaries: list[ProjectSummary] = []
 
     for project in projects:
         pid = project["id"]
         project_loans = [loan for loan in loans if loan["project_id"] == pid]
         open_loans = [loan for loan in project_loans if loan["status"] == "loaned"]
-        overdue = [
-            loan
-            for loan in open_loans
-            if loan["due_at"] and datetime.fromisoformat(loan["due_at"]) < now
-        ]
         summaries.append(
             ProjectSummary(
                 **project,
                 loan_count=len(project_loans),
                 open_loan_count=len(open_loans),
-                overdue_count=len(overdue),
                 feedback_count=sum(1 for f in feedback if f["project_id"] == pid),
             )
         )

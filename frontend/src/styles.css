@@ -41,7 +41,6 @@
   --red-deep: #8e1418;
   --red-tint: #fdecec;
   --red-tint-border: #f6c9c9;
-  --red-row: #fef7f7;
   --cyan: #2ba7df;
   --star: #e3a008;
 
@@ -184,31 +183,6 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.overdue-callout {
-  padding: 14px;
-  border-radius: 10px;
-  background: var(--bg);
-}
-.overdue-callout-label {
-  font-size: 12.5px;
-  color: var(--muted);
-  margin-bottom: 4px;
-}
-.overdue-callout-value {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-.overdue-callout-value strong {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--red);
-}
-.overdue-callout-value span {
-  font-size: 13px;
-  color: var(--muted);
 }
 
 .user-row {
@@ -404,6 +378,13 @@ a:hover {
   background: var(--divider);
   color: var(--ink);
 }
+.btn-ghost.danger {
+  color: var(--red);
+}
+.btn-ghost.danger:hover:not(:disabled) {
+  background: var(--red-tint);
+  color: var(--red-deep);
+}
 .btn-dashed {
   background: var(--surface);
   border: 1px dashed var(--border-strong);
@@ -413,6 +394,13 @@ a:hover {
 }
 .btn-dashed:hover:not(:disabled) {
   border-color: var(--navy);
+}
+.btn-danger {
+  background: var(--red);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--red-deep);
 }
 
 /* Text actions inside table rows and list rows. */
@@ -480,34 +468,6 @@ a:hover {
   font-weight: 600;
 }
 
-/* ---------------------------------------------------------------- banner */
-.alert-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 16px;
-  border-radius: 10px;
-  background: var(--red-tint);
-  border: 1px solid var(--red-tint-border);
-  margin-bottom: 22px;
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--red-deep);
-}
-.alert-dot {
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--red);
-}
-.alert-banner a {
-  margin-inline-start: auto;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--red-deep);
-}
-
 /* ----------------------------------------------------------------- cards */
 .card {
   background: var(--surface);
@@ -547,7 +507,7 @@ a:hover {
 }
 .project-card-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding-top: 13px;
   border-top: 1px solid var(--divider-light);
@@ -560,14 +520,11 @@ a:hover {
   font-size: 12px;
   color: var(--dim);
 }
-.value.alert {
-  color: var(--red);
-}
 
-/* Four equal cards above the project-detail tabs. */
+/* Three equal cards above the project-detail tabs. */
 .stat-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 26px;
 }
@@ -740,13 +697,6 @@ td.meta {
   font-size: 13.5px;
 }
 
-tr.row-alert {
-  background: var(--red-row);
-}
-tr.row-alert td.due {
-  color: var(--red-deep);
-  font-weight: 700;
-}
 tr.selectable {
   cursor: pointer;
 }
@@ -756,6 +706,48 @@ tr.selectable:hover {
 tr.row-selected,
 tr.row-selected:hover {
   background: var(--row-selected);
+}
+
+/* Collapsible brigade group header — a table row (colSpan) in the
+   directory, a plain row in the Settings list; same look either way. */
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: var(--cell-pad) 18px;
+  border: 0;
+  background: var(--surface-alt);
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+}
+.group-toggle:hover {
+  background: var(--divider);
+}
+.group-toggle .chevron {
+  flex: none;
+  width: 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.group-toggle .group-count {
+  margin-inline-start: auto;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--dim);
+}
+tr.group-row td {
+  padding: 0;
+  border-bottom: 1px solid var(--divider);
+}
+tr.group-row .group-toggle {
+  border-radius: 0;
+}
+.list-card .group-toggle {
+  border-bottom: 1px solid var(--divider);
 }
 
 /* --------------------------------------------------------- split layouts */
@@ -1205,9 +1197,6 @@ textarea {
     margin-inline-start: auto;
     flex-direction: row;
     align-items: center;
-  }
-  .overdue-callout {
-    display: none;
   }
   .content {
     padding: 20px 16px 40px;

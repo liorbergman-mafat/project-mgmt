@@ -13,7 +13,6 @@ export interface Project {
 export interface ProjectSummary extends Project {
   loan_count: number;
   open_loan_count: number;
-  overdue_count: number;
   feedback_count: number;
 }
 
@@ -73,12 +72,10 @@ export interface Loan {
   quantity: number;
   status: LoanStatus;
   loaned_at: string;
-  due_at: string | null;
   returned_at: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
-  is_overdue: boolean;
   item: Item | null;
   location: Location | null;
 }

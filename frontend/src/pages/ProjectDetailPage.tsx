@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAsync } from "../hooks";
 import {
@@ -13,6 +13,7 @@ import {
 } from "../i18n";
 import { useShell } from "../shellData";
 import {
+  ConfirmModal,
   EmptyState,
   ErrorBanner,
   Field,
@@ -59,6 +60,7 @@ export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const id = projectId!;
   const shell = useShell();
+  const navigate = useNavigate();
 
   const detail = useAsync(() => api.projects.detail(id), [id]);
   // Lookup lists for the "new item" / "new loan" / "new feedback" dropdowns.
@@ -71,6 +73,7 @@ export default function ProjectDetailPage() {
   const [addingItem, setAddingItem] = useState(false);
   const [addingLoan, setAddingLoan] = useState(false);
   const [addingFeedback, setAddingFeedback] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (detail.loading) return <Spinner />;
   if (detail.error) return <ErrorBanner error={detail.error} onRetry={detail.reload} />;
@@ -91,8 +94,13 @@ export default function ProjectDetailPage() {
     refresh();
   }
 
+  async function deleteProject() {
+    await api.projects.remove(project.id);
+    shell.reloadAll();
+    navigate("/projects");
+  }
+
   const openLoans = loans.filter((loan) => loan.status === "loaned").length;
-  const overdue = loans.filter((loan) => loan.is_overdue).length;
 
   return (
     <>
@@ -111,6 +119,9 @@ export default function ProjectDetailPage() {
           {project.description && <p className="subtitle">{project.description}</p>}
         </div>
         <div className="header-actions">
+          <button className="btn btn-ghost danger" onClick={() => setDeleting(true)}>
+            {t.projects.deleteProject}
+          </button>
           <button className="btn btn-ghost" onClick={toggleArchive}>
             {project.status === "archived" ? t.projects.unarchive : t.projects.archive}
           </button>
@@ -130,7 +141,6 @@ export default function ProjectDetailPage() {
       <div className="stat-strip">
         <StatCard label={t.projects.stats.items} value={items.length} />
         <StatCard label={t.projects.stats.openLoans} value={openLoans} />
-        <StatCard label={t.projects.stats.overdue} value={overdue} alert={overdue > 0} />
         <StatCard label={t.projects.stats.feedback} value={feedback.length} />
       </div>
 
@@ -225,15 +235,25 @@ export default function ProjectDetailPage() {
           }}
         />
       )}
+
+      {deleting && (
+        <ConfirmModal
+          title={t.projects.deleteConfirmTitle}
+          message={t.projects.deleteConfirmMessage(project.name)}
+          confirmLabel={t.projects.deleteProject}
+          onClose={() => setDeleting(false)}
+          onConfirm={deleteProject}
+        />
+      )}
     </>
   );
 }
 
-function StatCard({ label, value, alert }: { label: string; value: number; alert?: boolean }) {
+function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="stat-card">
       <div className="label">{label}</div>
-      <div className={`value num${alert ? " alert" : ""}`}>{value}</div>
+      <div className="value num">{value}</div>
     </div>
   );
 }
@@ -353,14 +373,13 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
                 <th>{t.loans.location}</th>
                 <th>{t.loans.quantity}</th>
                 <th>{t.loans.loanedAt}</th>
-                <th>{t.loans.dueAt}</th>
                 <th>{t.loans.status}</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               {loans.map((loan) => (
-                <tr key={loan.id} className={loan.is_overdue ? "row-alert" : ""}>
+                <tr key={loan.id}>
                   <td className="strong">
                     {itemLabel(loan.item)}
                     {loan.item?.serial_id && (
@@ -372,9 +391,6 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
                   <td className="num">{loan.quantity}</td>
                   <td className="num" style={{ color: "var(--slate)" }}>
                     {formatDate(loan.loaned_at)}
-                  </td>
-                  <td className="num due" style={{ color: "var(--slate)" }}>
-                    {formatDate(loan.due_at)}
                     {loan.returned_at && (
                       <div className="dim small num">
                         {t.loans.returnedAt}: {formatDate(loan.returned_at)}
@@ -419,9 +435,6 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
 }
 
 function LoanStatusPill({ loan }: { loan: Loan }) {
-  // `is_overdue` is derived server-side at read time, never stored.
-  if (loan.is_overdue) return <Pill tone="red">{t.loans.overdue}</Pill>;
-
   const tone: Record<Loan["status"], Tone> = {
     loaned: "blue",
     returned: "grey",
@@ -627,14 +640,11 @@ function NewLoanModal({
   const [locationId, setLocationId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [loanedAt, setLoanedAt] = useState(toLocalInputValue(new Date()));
-  const [dueAt, setDueAt] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // The due date is optional, but if given it has to come after the loan date.
-  const datesInverted = Boolean(dueAt) && new Date(dueAt) <= new Date(loanedAt);
-  const invalid = !itemId || !locationId || quantity < 1 || datesInverted;
+  const invalid = !itemId || !locationId || quantity < 1;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -647,7 +657,6 @@ function NewLoanModal({
         location_id: locationId,
         quantity,
         loaned_at: new Date(loanedAt).toISOString(),
-        due_at: dueAt ? new Date(dueAt).toISOString() : null,
         notes: notes.trim() || null,
       });
       onCreated();
@@ -711,21 +720,13 @@ function NewLoanModal({
             />
           </Field>
 
-          <Field label={t.loans.dueAt}>
-            <input
-              type="datetime-local"
-              value={dueAt}
-              onChange={(e) => setDueAt(e.target.value)}
-            />
-          </Field>
-
           <Field label={t.loans.notes} span>
             <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
 
-          {(datesInverted || error) && (
+          {error && (
             <div className="span-2">
-              <ErrorBanner error={datesInverted ? t.loans.dueBeforeLoaned : error!} />
+              <ErrorBanner error={error} />
             </div>
           )}
         </div>

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 
 ProjectStatus = Literal["active", "completed", "archived"]
 LoanStatus = Literal["loaned", "returned", "lost"]
@@ -36,7 +36,6 @@ class ProjectSummary(Project):
 
     loan_count: int = 0
     open_loan_count: int = 0
-    overdue_count: int = 0
     feedback_count: int = 0
 
 
@@ -163,7 +162,6 @@ class LoanCreate(BaseModel):
     quantity: int = 1
     status: LoanStatus = "loaned"
     loaned_at: Optional[datetime] = None
-    due_at: Optional[datetime] = None
     returned_at: Optional[datetime] = None
     notes: Optional[str] = None
 
@@ -174,7 +172,6 @@ class LoanUpdate(BaseModel):
     quantity: Optional[int] = None
     status: Optional[LoanStatus] = None
     loaned_at: Optional[datetime] = None
-    due_at: Optional[datetime] = None
     returned_at: Optional[datetime] = None
     notes: Optional[str] = None
 
@@ -187,7 +184,6 @@ class Loan(BaseModel):
     quantity: int
     status: LoanStatus
     loaned_at: datetime
-    due_at: Optional[datetime] = None
     returned_at: Optional[datetime] = None
     notes: Optional[str] = None
     created_at: datetime
@@ -196,14 +192,6 @@ class Loan(BaseModel):
     # Populated by PostgREST's embedded select.
     item: Optional[Item] = None
     location: Optional[Location] = None
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def is_overdue(self) -> bool:
-        """Derived, never stored — so it cannot drift out of date."""
-        if self.status != "loaned" or self.due_at is None:
-            return False
-        return self.due_at < datetime.now(timezone.utc)
 
 
 # --------------------------------------------------------------------------

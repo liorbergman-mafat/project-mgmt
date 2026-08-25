@@ -36,9 +36,6 @@ projects ──┬─< items >── type_id / model_id / status_id / location_i
 | `loans`          | "Item X was loaned to location Y under project Z", with dates + status — separate from the item's own status/location. |
 | `feedback`       | What a location said, when they said it, optionally about one loan.         |
 
-`is_overdue` is **derived at read time** (`status = 'loaned' AND due_at < now()`),
-never stored — so it cannot go stale.
-
 ---
 
 ## First-time setup
@@ -116,9 +113,7 @@ The sidebar holds the three screens; the gear beside your name opens Settings.
 1. **הגדרות** — set up the dropdown option lists once: Types, Models (each tied
    to a type), Statuses, and Locations (units, warehouses, ...).
 2. **פרויקטים** — the landing screen: one card per project with its loan, open,
-   overdue and feedback counts. A banner appears when anything is overdue, and
-   filters the grid down to the projects responsible. Open a project for three
-   tabs:
+   and feedback counts. Open a project for three tabs:
    - **פריטי הפרויקט** — **+ פריט חדש** adds an item to *this* project
      (Type/Model/Serial/Status/Location); rows can be edited or deleted.
    - **השאלות** — **+ השאלה חדשה** records one of the project's items loaned to
@@ -130,8 +125,7 @@ The sidebar holds the three screens; the gear beside your name opens Settings.
 4. **משוב מהיחידות** — every project's feedback in one feed, filterable by low
    ratings, this month, or unrated, with average ratings per equipment type.
 
-Rows turn red when a loan is past its due date. **סמן כהוחזר** closes a loan and
-stamps the return time.
+**סמן כהוחזר** closes a loan and stamps the return time.
 
 The per-location counts on **מיקומים** are folded together in the browser from
 the items, loans and feedback lists (`frontend/src/locationStats.ts`), because
@@ -144,8 +138,8 @@ fetch, that is the piece to move behind an aggregate endpoint.
 
 `backend/smoke_test.py` exercises the whole API against your real Supabase
 project — create a project, loan an item, log feedback, mark it returned, check
-the overdue computation and the foreign-key guards — then deletes everything it
-created. Existing rows are read but never modified.
+the foreign-key guards — then deletes everything it created. Existing rows are
+read but never modified.
 
 ```powershell
 cd backend
@@ -162,7 +156,7 @@ Interactive docs at http://127.0.0.1:8000/docs.
 
 | Method             | Path                            | Purpose                                  |
 | ------------------ | ------------------------------- | ---------------------------------------- |
-| `GET`              | `/api/projects`                 | Projects with loan/overdue/feedback counts |
+| `GET`              | `/api/projects`                 | Projects with loan/feedback counts       |
 | `GET`              | `/api/projects/{id}/detail`     | Project + its items + its loans + its feedback, one call |
 | `POST`             | `/api/projects/{id}/archive`, `/unarchive` | Move a project in or out of the archive |
 | `GET/POST/PATCH/DELETE` | `/api/items`                | Filter list by `project_id`              |

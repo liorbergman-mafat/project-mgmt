@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useAsync } from "../hooks";
 import { itemLabel, locationLabel, t } from "../i18n";
-import { options, sortCategories } from "../locationGrouping";
+import { groupByBrigade, options, sortCategories } from "../locationGrouping";
 import { useShell } from "../shellData";
 import { LocationFormModal } from "../components/LocationFormModal";
 import {
@@ -542,6 +542,19 @@ function LocationsPanel() {
     (row) => row.kind === activeKind && row.category === activeCategory,
   );
 
+  // A category can span hundreds of battalions/units, so they open bucketed
+  // by brigade, collapsed, rather than as one long flat list.
+  const groups = useMemo(() => groupByBrigade(visible), [visible]);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+
+  function toggleGroup(key: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  }
+
   // Switching kind can leave the current category with no rows under it —
   // `activeCategory` above then falls back to that kind's first category.
   const selectKind = setKind;
@@ -590,14 +603,34 @@ function LocationsPanel() {
           }
         >
           {visible.length === 0 && <EmptyState message={t.locations.noMatches} />}
-          {visible.map((row) => (
-            <ListRow
-              key={row.id}
-              name={row.name}
-              meta={row.battalion ?? row.brigade ?? undefined}
-              onEdit={() => setEditing(row)}
-              onDelete={() => remove(row.id)}
-            />
+          {groups.map((group) => (
+            <div key={group.key}>
+              <button
+                type="button"
+                className="group-toggle"
+                aria-expanded={open.has(group.key)}
+                onClick={() => toggleGroup(group.key)}
+              >
+                <span className="chevron" aria-hidden="true">
+                  {open.has(group.key) ? "▾" : "▸"}
+                </span>
+                <span>{group.label}</span>
+                <span className="group-count">
+                  {t.locations.battalionCount(group.rows.length)}
+                </span>
+              </button>
+
+              {open.has(group.key) &&
+                group.rows.map((row) => (
+                  <ListRow
+                    key={row.id}
+                    name={row.name}
+                    meta={row.battalion ?? undefined}
+                    onEdit={() => setEditing(row)}
+                    onDelete={() => remove(row.id)}
+                  />
+                ))}
+            </div>
           ))}
         </ListLayout>
       )}
@@ -609,9 +642,11 @@ function LocationsPanel() {
             setCreating(false);
             setEditing(null);
           }}
-          onSaved={() => {
+          onSaved={(saved) => {
             setCreating(false);
             setEditing(null);
+            // Jump straight to the saved row's brigade group.
+            setOpen((prev) => new Set(prev).add(`${saved.category ?? ""} ${saved.brigade ?? ""}`));
             reload();
           }}
         />
