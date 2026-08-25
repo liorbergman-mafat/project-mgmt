@@ -5,22 +5,25 @@ import { api } from "../api";
 import { useAsync } from "../hooks";
 import {
   formatDate,
-  formatDateTime,
   formatRelative,
   itemLabel,
   locationLabel,
   t,
   toLocalInputValue,
 } from "../i18n";
+import { useShell } from "../shellData";
 import {
-  Badge,
   EmptyState,
   ErrorBanner,
   Field,
+  FormActions,
   Modal,
-  Rating,
+  Pill,
   Spinner,
+  Stars,
+  Tabs,
 } from "../components/ui";
+import type { Tone } from "../components/ui";
 import type {
   Feedback,
   Item,
@@ -28,28 +31,43 @@ import type {
   ItemStatus,
   ItemType,
   Loan,
-  LoanStatus,
   Location,
   ProjectStatus,
 } from "../types";
 
-const PROJECT_TONE: Record<ProjectStatus, "green" | "blue" | "grey"> = {
+const PROJECT_TONE: Record<ProjectStatus, Tone> = {
   active: "green",
   completed: "blue",
   archived: "grey",
 };
 
+/**
+ * Item statuses are rows in a table the user edits, not a fixed enum, so the
+ * pill colour is keyed off the names the seed data ships with and falls back
+ * to grey for anything added later.
+ */
+const ITEM_STATUS_TONE: Record<string, Tone> = {
+  "בשימוש": "green",
+  "במחסן": "blue",
+  "בתחזוקה": "amber",
+  "הושבת": "grey",
+};
+
+type Tab = "items" | "loans" | "feedback";
+
 export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const id = projectId!;
+  const shell = useShell();
 
   const detail = useAsync(() => api.projects.detail(id), [id]);
   // Lookup lists for the "new item" / "new loan" / "new feedback" dropdowns.
   const types = useAsync(() => api.itemTypes.list(), []);
   const models = useAsync(() => api.itemModels.list(), []);
   const statuses = useAsync(() => api.itemStatuses.list(), []);
-  const locations = useAsync(() => api.locations.list(), []);
 
+  const [tab, setTab] = useState<Tab>("items");
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [addingItem, setAddingItem] = useState(false);
   const [addingLoan, setAddingLoan] = useState(false);
   const [addingFeedback, setAddingFeedback] = useState(false);
@@ -59,15 +77,22 @@ export default function ProjectDetailPage() {
   if (!detail.data) return null;
 
   const { project, items, loans, feedback } = detail.data;
+  const locations = shell.locations.data ?? [];
+
+  /** Anything here can move a project's counts, so the shell reloads with it. */
+  function refresh() {
+    detail.reload();
+    shell.reloadAll();
+  }
 
   async function toggleArchive() {
-    if (project.status === "archived") {
-      await api.projects.unarchive(project.id);
-    } else {
-      await api.projects.archive(project.id);
-    }
-    detail.reload();
+    if (project.status === "archived") await api.projects.unarchive(project.id);
+    else await api.projects.archive(project.id);
+    refresh();
   }
+
+  const openLoans = loans.filter((loan) => loan.status === "loaned").length;
+  const overdue = loans.filter((loan) => loan.is_overdue).length;
 
   return (
     <>
@@ -79,41 +104,19 @@ export default function ProjectDetailPage() {
         <div>
           <div className="title-row">
             <h1>{project.name}</h1>
-            <Badge tone={PROJECT_TONE[project.status]}>
+            <Pill tone={PROJECT_TONE[project.status]}>
               {t.projects.statusLabels[project.status]}
-            </Badge>
+            </Pill>
           </div>
-          {project.description && <p className="muted">{project.description}</p>}
+          {project.description && <p className="subtitle">{project.description}</p>}
         </div>
-        <button className="btn btn-ghost" onClick={toggleArchive}>
-          {project.status === "archived" ? t.projects.unarchive : t.projects.archive}
-        </button>
-      </header>
-
-      {/* ---------------------------------------------------------------- */}
-      <section className="section">
-        <div className="section-header">
-          <h2>
-            {t.projectItems.title} <span className="count">{items.length}</span>
-          </h2>
-          <button className="btn btn-primary" onClick={() => setAddingItem(true)}>
+        <div className="header-actions">
+          <button className="btn btn-ghost" onClick={toggleArchive}>
+            {project.status === "archived" ? t.projects.unarchive : t.projects.archive}
+          </button>
+          <button className="btn btn-secondary" onClick={() => setAddingItem(true)}>
             + {t.projectItems.new}
           </button>
-        </div>
-
-        {items.length === 0 ? (
-          <EmptyState message={t.projectItems.empty} />
-        ) : (
-          <ItemsTable items={items} onChanged={detail.reload} />
-        )}
-      </section>
-
-      {/* ---------------------------------------------------------------- */}
-      <section className="section">
-        <div className="section-header">
-          <h2>
-            {t.loans.title} <span className="count">{loans.length}</span>
-          </h2>
           <button
             className="btn btn-primary"
             onClick={() => setAddingLoan(true)}
@@ -122,47 +125,77 @@ export default function ProjectDetailPage() {
             + {t.loans.new}
           </button>
         </div>
+      </header>
 
-        {loans.length === 0 ? (
+      <div className="stat-strip">
+        <StatCard label={t.projects.stats.items} value={items.length} />
+        <StatCard label={t.projects.stats.openLoans} value={openLoans} />
+        <StatCard label={t.projects.stats.overdue} value={overdue} alert={overdue > 0} />
+        <StatCard label={t.projects.stats.feedback} value={feedback.length} />
+      </div>
+
+      <Tabs
+        active={tab}
+        onSelect={setTab}
+        tabs={[
+          { key: "items", label: t.projectItems.title, count: items.length },
+          { key: "loans", label: t.loans.title, count: loans.length },
+          { key: "feedback", label: t.feedback.title, count: feedback.length },
+        ]}
+      />
+
+      {tab === "items" &&
+        (items.length === 0 ? (
+          <EmptyState message={t.projectItems.empty} />
+        ) : (
+          <ItemsTable items={items} onEdit={setEditingItem} onChanged={refresh} />
+        ))}
+
+      {tab === "loans" &&
+        (loans.length === 0 ? (
           <EmptyState message={t.loans.empty} />
         ) : (
-          <LoansTable loans={loans} onChanged={detail.reload} />
-        )}
-      </section>
+          <LoansTable loans={loans} onChanged={refresh} />
+        ))}
 
-      {/* ---------------------------------------------------------------- */}
-      <section className="section">
-        <div className="section-header">
-          <h2>
-            {t.feedback.title} <span className="count">{feedback.length}</span>
-          </h2>
-          <button className="btn btn-secondary" onClick={() => setAddingFeedback(true)}>
-            + {t.feedback.new}
-          </button>
-        </div>
-
-        {feedback.length === 0 ? (
-          <EmptyState message={t.feedback.empty} />
-        ) : (
-          <div className="feedback-list">
-            {feedback.map((entry) => (
-              <FeedbackCard key={entry.id} entry={entry} onChanged={detail.reload} />
-            ))}
+      {tab === "feedback" && (
+        <>
+          <div className="pane-header">
+            <span className="section-label" style={{ margin: 0 }}>
+              {t.feedback.title}
+            </span>
+            <button className="btn btn-secondary" onClick={() => setAddingFeedback(true)}>
+              + {t.feedback.new}
+            </button>
           </div>
-        )}
-      </section>
+          {feedback.length === 0 ? (
+            <EmptyState message={t.feedback.empty} />
+          ) : (
+            <div className="feedback-list narrow">
+              {feedback.map((entry) => (
+                <FeedbackCard key={entry.id} entry={entry} onChanged={refresh} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
-      {addingItem && (
-        <NewItemModal
+      {(addingItem || editingItem) && (
+        <ItemFormModal
           projectId={id}
+          item={editingItem}
           types={types.data ?? []}
           models={models.data ?? []}
           statuses={statuses.data ?? []}
-          locations={locations.data ?? []}
-          onClose={() => setAddingItem(false)}
-          onCreated={() => {
+          locations={locations}
+          onClose={() => {
             setAddingItem(false);
-            detail.reload();
+            setEditingItem(null);
+          }}
+          onSaved={() => {
+            setAddingItem(false);
+            setEditingItem(null);
+            refresh();
           }}
         />
       )}
@@ -171,11 +204,11 @@ export default function ProjectDetailPage() {
         <NewLoanModal
           projectId={id}
           items={items}
-          locations={locations.data ?? []}
+          locations={locations}
           onClose={() => setAddingLoan(false)}
           onCreated={() => {
             setAddingLoan(false);
-            detail.reload();
+            refresh();
           }}
         />
       )}
@@ -183,12 +216,12 @@ export default function ProjectDetailPage() {
       {addingFeedback && (
         <NewFeedbackModal
           projectId={id}
-          locations={locations.data ?? []}
+          locations={locations}
           loans={loans}
           onClose={() => setAddingFeedback(false)}
           onCreated={() => {
             setAddingFeedback(false);
-            detail.reload();
+            refresh();
           }}
         />
       )}
@@ -196,10 +229,27 @@ export default function ProjectDetailPage() {
   );
 }
 
+function StatCard({ label, value, alert }: { label: string; value: number; alert?: boolean }) {
+  return (
+    <div className="stat-card">
+      <div className="label">{label}</div>
+      <div className={`value num${alert ? " alert" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
 /* ========================================================================
- * Project items
+ * Tab 1 — project items
  * ===================================================================== */
-function ItemsTable({ items, onChanged }: { items: Item[]; onChanged: () => void }) {
+function ItemsTable({
+  items,
+  onEdit,
+  onChanged,
+}: {
+  items: Item[];
+  onEdit: (item: Item) => void;
+  onChanged: () => void;
+}) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -220,48 +270,59 @@ function ItemsTable({ items, onChanged }: { items: Item[]; onChanged: () => void
   return (
     <>
       {error && <ErrorBanner error={error} />}
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>{t.projectItems.type}</th>
-              <th>{t.projectItems.model}</th>
-              <th>{t.projectItems.serialId}</th>
-              <th>{t.projectItems.status}</th>
-              <th>{t.projectItems.location}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>{item.type?.name ?? t.common.none}</td>
-                <td>{item.model?.name ?? t.common.none}</td>
-                <td>{item.serial_id ?? t.common.none}</td>
-                <td>
-                  <Badge tone="grey">{item.status?.name ?? t.common.none}</Badge>
-                </td>
-                <td>{locationLabel(item.location)}</td>
-                <td className="actions">
-                  <button
-                    className="btn btn-ghost small danger"
-                    disabled={busyId === item.id}
-                    onClick={() => remove(item.id)}
-                  >
-                    {t.common.delete}
-                  </button>
-                </td>
+      <div className="table-card">
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>{t.projectItems.typeAndModel}</th>
+                <th>{t.projectItems.serialId}</th>
+                <th>{t.projectItems.status}</th>
+                <th>{t.projectItems.location}</th>
+                <th>{t.common.updated}</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td className="strong">{itemLabel(item)}</td>
+                  <td className="num" style={{ color: "var(--slate)" }}>
+                    {item.serial_id ?? t.common.none}
+                  </td>
+                  <td>
+                    <Pill tone={ITEM_STATUS_TONE[item.status?.name ?? ""] ?? "grey"}>
+                      {item.status?.name ?? t.common.none}
+                    </Pill>
+                  </td>
+                  <td>{locationLabel(item.location)}</td>
+                  <td className="meta">{formatRelative(item.updated_at)}</td>
+                  <td className="actions">
+                    <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                      <button className="link-btn" onClick={() => onEdit(item)}>
+                        {t.common.edit}
+                      </button>
+                      <button
+                        className="link-btn danger"
+                        disabled={busyId === item.id}
+                        onClick={() => remove(item.id)}
+                      >
+                        {t.common.delete}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );
 }
 
 /* ========================================================================
- * Loans
+ * Tab 2 — loans
  * ===================================================================== */
 function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void }) {
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -283,83 +344,94 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
   return (
     <>
       {error && <ErrorBanner error={error} />}
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>{t.loans.item}</th>
-              <th>{t.loans.location}</th>
-              <th>{t.loans.quantity}</th>
-              <th>{t.loans.loanedAt}</th>
-              <th>{t.loans.dueAt}</th>
-              <th>{t.loans.returnedAt}</th>
-              <th>{t.loans.status}</th>
-              <th>{t.loans.notes}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {loans.map((loan) => (
-              <tr key={loan.id} className={loan.is_overdue ? "row-alert" : ""}>
-                <td>
-                  <strong>{itemLabel(loan.item)}</strong>
-                  {loan.item?.serial_id && (
-                    <div className="muted small">{loan.item.serial_id}</div>
-                  )}
-                </td>
-                <td>{locationLabel(loan.location)}</td>
-                <td>{loan.quantity}</td>
-                <td>{formatDate(loan.loaned_at)}</td>
-                <td>{formatDate(loan.due_at)}</td>
-                <td>{formatDate(loan.returned_at)}</td>
-                <td>
-                  <LoanStatusBadge loan={loan} />
-                </td>
-                <td className="muted small">{loan.notes ?? t.common.none}</td>
-                <td className="actions">
-                  {loan.status === "loaned" && (
-                    <button
-                      className="btn btn-ghost small"
-                      disabled={busyId === loan.id}
-                      onClick={() => run(loan.id, () => api.loans.markReturned(loan.id))}
-                    >
-                      {t.loans.markReturned}
-                    </button>
-                  )}
-                  <button
-                    className="btn btn-ghost small danger"
-                    disabled={busyId === loan.id}
-                    onClick={() => {
-                      if (confirm(t.common.confirmDelete)) {
-                        run(loan.id, () => api.loans.remove(loan.id));
-                      }
-                    }}
-                  >
-                    {t.common.delete}
-                  </button>
-                </td>
+      <div className="table-card">
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>{t.loans.item}</th>
+                <th>{t.loans.location}</th>
+                <th>{t.loans.quantity}</th>
+                <th>{t.loans.loanedAt}</th>
+                <th>{t.loans.dueAt}</th>
+                <th>{t.loans.status}</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {loans.map((loan) => (
+                <tr key={loan.id} className={loan.is_overdue ? "row-alert" : ""}>
+                  <td className="strong">
+                    {itemLabel(loan.item)}
+                    {loan.item?.serial_id && (
+                      <span className="dim num"> · {loan.item.serial_id}</span>
+                    )}
+                    {loan.notes && <div className="muted small">{loan.notes}</div>}
+                  </td>
+                  <td>{locationLabel(loan.location)}</td>
+                  <td className="num">{loan.quantity}</td>
+                  <td className="num" style={{ color: "var(--slate)" }}>
+                    {formatDate(loan.loaned_at)}
+                  </td>
+                  <td className="num due" style={{ color: "var(--slate)" }}>
+                    {formatDate(loan.due_at)}
+                    {loan.returned_at && (
+                      <div className="dim small num">
+                        {t.loans.returnedAt}: {formatDate(loan.returned_at)}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <LoanStatusPill loan={loan} />
+                  </td>
+                  <td className="actions">
+                    <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                      {loan.status === "loaned" && (
+                        <button
+                          className="link-btn"
+                          disabled={busyId === loan.id}
+                          onClick={() => run(loan.id, () => api.loans.markReturned(loan.id))}
+                        >
+                          {t.loans.markReturned}
+                        </button>
+                      )}
+                      <button
+                        className="link-btn quiet"
+                        disabled={busyId === loan.id}
+                        onClick={() => {
+                          if (confirm(t.common.confirmDelete)) {
+                            run(loan.id, () => api.loans.remove(loan.id));
+                          }
+                        }}
+                      >
+                        {t.common.delete}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );
 }
 
-function LoanStatusBadge({ loan }: { loan: Loan }) {
-  if (loan.is_overdue) return <Badge tone="red">{t.loans.overdue}</Badge>;
+function LoanStatusPill({ loan }: { loan: Loan }) {
+  // `is_overdue` is derived server-side at read time, never stored.
+  if (loan.is_overdue) return <Pill tone="red">{t.loans.overdue}</Pill>;
 
-  const tone: Record<LoanStatus, "amber" | "green" | "grey"> = {
-    loaned: "amber",
-    returned: "green",
-    lost: "grey",
+  const tone: Record<Loan["status"], Tone> = {
+    loaned: "blue",
+    returned: "grey",
+    lost: "red",
   };
-  return <Badge tone={tone[loan.status]}>{t.loans.statusLabels[loan.status]}</Badge>;
+  return <Pill tone={tone[loan.status]}>{t.loans.statusLabels[loan.status]}</Pill>;
 }
 
 /* ========================================================================
- * Feedback
+ * Tab 3 — feedback
  * ===================================================================== */
 function FeedbackCard({ entry, onChanged }: { entry: Feedback; onChanged: () => void }) {
   const [error, setError] = useState<string | null>(null);
@@ -376,26 +448,22 @@ function FeedbackCard({ entry, onChanged }: { entry: Feedback; onChanged: () => 
 
   return (
     <article className="card feedback-card">
-      <header className="feedback-head">
-        <div>
-          <strong>{locationLabel(entry.location)}</strong>
-          {entry.loan?.item && (
-            <span className="muted small"> · {itemLabel(entry.loan.item)}</span>
-          )}
-        </div>
-        <Rating value={entry.rating} />
-      </header>
+      <div className="feedback-head">
+        <strong>{locationLabel(entry.location)}</strong>
+        {entry.loan?.item && <span className="pill pill-item">{itemLabel(entry.loan.item)}</span>}
+        <Stars value={entry.rating} />
+        <time className="when" dateTime={entry.feedback_at}>
+          {formatRelative(entry.feedback_at)}
+        </time>
+      </div>
 
       <p className="feedback-body">{entry.content}</p>
 
-      <footer className="feedback-foot">
-        <time dateTime={entry.feedback_at} title={formatDateTime(entry.feedback_at)}>
-          {formatRelative(entry.feedback_at)} · {formatDateTime(entry.feedback_at)}
-        </time>
-        <button className="btn btn-ghost small danger" onClick={remove}>
+      <div className="row-actions">
+        <button className="link-btn danger" onClick={remove}>
           {t.common.delete}
         </button>
-      </footer>
+      </div>
 
       {error && <ErrorBanner error={error} />}
     </article>
@@ -405,33 +473,34 @@ function FeedbackCard({ entry, onChanged }: { entry: Feedback; onChanged: () => 
 /* ========================================================================
  * Modals
  * ===================================================================== */
-function NewItemModal({
+function ItemFormModal({
   projectId,
+  item,
   types,
   models,
   statuses,
   locations,
   onClose,
-  onCreated,
+  onSaved,
 }: {
   projectId: string;
+  item: Item | null;
   types: ItemType[];
   models: ItemModel[];
   statuses: ItemStatus[];
   locations: Location[];
   onClose: () => void;
-  onCreated: () => void;
+  onSaved: () => void;
 }) {
-  const [typeId, setTypeId] = useState("");
-  const [modelId, setModelId] = useState("");
-  const [serialId, setSerialId] = useState("");
-  const [statusId, setStatusId] = useState("");
-  const [locationId, setLocationId] = useState("");
+  const [typeId, setTypeId] = useState(item?.type_id ?? "");
+  const [modelId, setModelId] = useState(item?.model_id ?? "");
+  const [serialId, setSerialId] = useState(item?.serial_id ?? "");
+  const [statusId, setStatusId] = useState(item?.status_id ?? "");
+  const [locationId, setLocationId] = useState(item?.location_id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const listsEmpty =
-    types.length === 0 || statuses.length === 0 || locations.length === 0;
+  const listsEmpty = types.length === 0 || statuses.length === 0 || locations.length === 0;
   const modelsForType = models.filter((m) => m.type_id === typeId);
 
   function onTypeChange(value: string) {
@@ -444,15 +513,17 @@ function NewItemModal({
     setSaving(true);
     setError(null);
     try {
-      await api.items.create({
+      const body = {
         project_id: projectId,
         type_id: typeId,
         model_id: modelId,
         serial_id: serialId.trim() || null,
         status_id: statusId,
         location_id: locationId,
-      });
-      onCreated();
+      };
+      if (item) await api.items.update(item.id, body);
+      else await api.items.create(body);
+      onSaved();
     } catch (err) {
       setError((err as Error).message);
       setSaving(false);
@@ -460,16 +531,18 @@ function NewItemModal({
   }
 
   return (
-    <Modal title={t.projectItems.new} onClose={onClose}>
-      <form onSubmit={submit} className="form">
-        {listsEmpty && (
-          <ErrorBanner error="הרשימות עדיין ריקות — הגדר סוגים, סטטוסים ומיקומים בעמוד ״הגדרות״ תחילה." />
-        )}
+    <Modal title={item ? t.projectItems.edit : t.projectItems.new} onClose={onClose}>
+      <form onSubmit={submit}>
+        <div className="form-body">
+          {listsEmpty && (
+            <div className="span-2">
+              <ErrorBanner error={t.projectItems.listsEmpty} />
+            </div>
+          )}
 
-        <div className="form-row">
           <Field label={t.projectItems.type} required>
             <select value={typeId} onChange={(e) => onTypeChange(e.target.value)} required autoFocus>
-              <option value="">—</option>
+              <option value="">{t.common.none}</option>
               {types.map((ty) => (
                 <option key={ty.id} value={ty.id}>
                   {ty.name}
@@ -477,6 +550,7 @@ function NewItemModal({
               ))}
             </select>
           </Field>
+
           <Field label={t.projectItems.model} required>
             <select
               value={modelId}
@@ -484,7 +558,7 @@ function NewItemModal({
               required
               disabled={!typeId}
             >
-              <option value="">{typeId ? "—" : t.projectItems.selectTypeFirst}</option>
+              <option value="">{typeId ? t.common.none : t.projectItems.selectTypeFirst}</option>
               {modelsForType.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -492,16 +566,14 @@ function NewItemModal({
               ))}
             </select>
           </Field>
-        </div>
 
-        <Field label={t.projectItems.serialId}>
-          <input value={serialId} onChange={(e) => setSerialId(e.target.value)} />
-        </Field>
+          <Field label={t.projectItems.serialId} span>
+            <input value={serialId} onChange={(e) => setSerialId(e.target.value)} />
+          </Field>
 
-        <div className="form-row">
           <Field label={t.projectItems.status} required>
             <select value={statusId} onChange={(e) => setStatusId(e.target.value)} required>
-              <option value="">—</option>
+              <option value="">{t.common.none}</option>
               {statuses.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -509,9 +581,10 @@ function NewItemModal({
               ))}
             </select>
           </Field>
+
           <Field label={t.projectItems.location} required>
             <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
-              <option value="">—</option>
+              <option value="">{t.common.none}</option>
               {locations.map((loc) => (
                 <option key={loc.id} value={loc.id}>
                   {locationLabel(loc)}
@@ -519,22 +592,19 @@ function NewItemModal({
               ))}
             </select>
           </Field>
+
+          {error && (
+            <div className="span-2">
+              <ErrorBanner error={error} />
+            </div>
+          )}
         </div>
 
-        {error && <ErrorBanner error={error} />}
-
-        <footer className="form-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            {t.common.cancel}
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={saving || !typeId || !modelId || !statusId || !locationId}
-          >
-            {saving ? t.common.loading : t.common.save}
-          </button>
-        </footer>
+        <FormActions
+          saving={saving}
+          disabled={!typeId || !modelId || !statusId || !locationId}
+          onCancel={onClose}
+        />
       </form>
     </Modal>
   );
@@ -562,7 +632,9 @@ function NewLoanModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const catalogueEmpty = items.length === 0 || locations.length === 0;
+  // The due date is optional, but if given it has to come after the loan date.
+  const datesInverted = Boolean(dueAt) && new Date(dueAt) <= new Date(loanedAt);
+  const invalid = !itemId || !locationId || quantity < 1 || datesInverted;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -587,41 +659,39 @@ function NewLoanModal({
 
   return (
     <Modal title={t.loans.new} onClose={onClose}>
-      <form onSubmit={submit} className="form">
-        {catalogueEmpty && (
-          <ErrorBanner
-            error={
-              items.length === 0
-                ? "אין עדיין פריטים בפרויקט זה — הוסף פריט תחילה."
-                : "אין מיקומים רשומים — הוסף מיקום בעמוד ״הגדרות״ תחילה."
-            }
-          />
-        )}
+      <form onSubmit={submit}>
+        <div className="form-body">
+          {(items.length === 0 || locations.length === 0) && (
+            <div className="span-2">
+              <ErrorBanner
+                error={items.length === 0 ? t.loans.noItems : t.loans.noLocations}
+              />
+            </div>
+          )}
 
-        <Field label={t.loans.item} required>
-          <select value={itemId} onChange={(e) => setItemId(e.target.value)} required>
-            <option value="">—</option>
-            {items.map((item) => (
-              <option key={item.id} value={item.id}>
-                {itemLabel(item)}
-                {item.serial_id ? ` (${item.serial_id})` : ""}
-              </option>
-            ))}
-          </select>
-        </Field>
+          <Field label={t.loans.item} required span>
+            <select value={itemId} onChange={(e) => setItemId(e.target.value)} required autoFocus>
+              <option value="">{t.common.none}</option>
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {itemLabel(item)}
+                  {item.serial_id ? ` · ${item.serial_id}` : ""}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <Field label={t.loans.location} required>
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
-            <option value="">—</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {locationLabel(loc)}
-              </option>
-            ))}
-          </select>
-        </Field>
+          <Field label={t.loans.location} required>
+            <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
+              <option value="">{t.common.none}</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {locationLabel(loc)}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <div className="form-row">
           <Field label={t.loans.quantity} required>
             <input
               type="number"
@@ -631,6 +701,7 @@ function NewLoanModal({
               required
             />
           </Field>
+
           <Field label={t.loans.loanedAt} required>
             <input
               type="datetime-local"
@@ -639,34 +710,27 @@ function NewLoanModal({
               required
             />
           </Field>
+
+          <Field label={t.loans.dueAt}>
+            <input
+              type="datetime-local"
+              value={dueAt}
+              onChange={(e) => setDueAt(e.target.value)}
+            />
+          </Field>
+
+          <Field label={t.loans.notes} span>
+            <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </Field>
+
+          {(datesInverted || error) && (
+            <div className="span-2">
+              <ErrorBanner error={datesInverted ? t.loans.dueBeforeLoaned : error!} />
+            </div>
+          )}
         </div>
 
-        <Field label={t.loans.dueAt}>
-          <input
-            type="datetime-local"
-            value={dueAt}
-            onChange={(e) => setDueAt(e.target.value)}
-          />
-        </Field>
-
-        <Field label={t.loans.notes}>
-          <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </Field>
-
-        {error && <ErrorBanner error={error} />}
-
-        <footer className="form-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            {t.common.cancel}
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={saving || !itemId || !locationId}
-          >
-            {saving ? t.common.loading : t.common.save}
-          </button>
-        </footer>
+        <FormActions saving={saving} disabled={invalid} onCancel={onClose} />
       </form>
     </Modal>
   );
@@ -725,33 +789,33 @@ function NewFeedbackModal({
 
   return (
     <Modal title={t.feedback.new} onClose={onClose}>
-      <form onSubmit={submit} className="form">
-        <Field label={t.feedback.relatedLoan}>
-          <select value={loanId} onChange={(e) => onLoanChange(e.target.value)}>
-            <option value="">{t.feedback.generalFeedback}</option>
-            {loans.map((loan) => (
-              <option key={loan.id} value={loan.id}>
-                {itemLabel(loan.item)} → {locationLabel(loan.location)}
-              </option>
-            ))}
-          </select>
-        </Field>
+      <form onSubmit={submit}>
+        <div className="form-body">
+          <Field label={t.feedback.relatedLoan} span>
+            <select value={loanId} onChange={(e) => onLoanChange(e.target.value)} autoFocus>
+              <option value="">{t.feedback.generalFeedback}</option>
+              {loans.map((loan) => (
+                <option key={loan.id} value={loan.id}>
+                  {itemLabel(loan.item)} → {locationLabel(loan.location)}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <Field label={t.feedback.location} required>
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
-            <option value="">—</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {locationLabel(loc)}
-              </option>
-            ))}
-          </select>
-        </Field>
+          <Field label={t.feedback.location} required>
+            <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
+              <option value="">{t.common.none}</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {locationLabel(loc)}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <div className="form-row">
           <Field label={t.feedback.rating}>
             <select value={rating} onChange={(e) => setRating(e.target.value)}>
-              <option value="">{t.common.none}</option>
+              <option value="">{t.feedback.unrated}</option>
               {[5, 4, 3, 2, 1].map((n) => (
                 <option key={n} value={n}>
                   {"★".repeat(n)} ({n})
@@ -759,7 +823,8 @@ function NewFeedbackModal({
               ))}
             </select>
           </Field>
-          <Field label={t.feedback.at} required>
+
+          <Field label={t.feedback.at} required span>
             <input
               type="datetime-local"
               value={feedbackAt}
@@ -767,31 +832,28 @@ function NewFeedbackModal({
               required
             />
           </Field>
+
+          <Field label={t.feedback.content} required span>
+            <textarea
+              rows={4}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              required
+            />
+          </Field>
+
+          {error && (
+            <div className="span-2">
+              <ErrorBanner error={error} />
+            </div>
+          )}
         </div>
 
-        <Field label={t.feedback.content} required>
-          <textarea
-            rows={4}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-          />
-        </Field>
-
-        {error && <ErrorBanner error={error} />}
-
-        <footer className="form-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            {t.common.cancel}
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={saving || !locationId || !content.trim()}
-          >
-            {saving ? t.common.loading : t.common.save}
-          </button>
-        </footer>
+        <FormActions
+          saving={saving}
+          disabled={!locationId || !content.trim()}
+          onCancel={onClose}
+        />
       </form>
     </Modal>
   );

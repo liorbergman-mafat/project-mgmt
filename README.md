@@ -108,15 +108,35 @@ browser only ever talks to one origin.
 
 ## Using it
 
+The sign-in screen is a **placeholder** — any non-empty pair gets you in. See
+[Security](#security).
+
+The sidebar holds the three screens; the gear beside your name opens Settings.
+
 1. **הגדרות** — set up the dropdown option lists once: Types, Models (each tied
    to a type), Statuses, and Locations (units, warehouses, ...).
-2. **פרויקטים** — create a project, open it, then:
-   - **+ פריט חדש** adds an item to *this* project (Type/Model/Serial/Status/Location).
-   - **+ השאלה חדשה** records one of the project's items loaned to a location.
-   - **+ משוב חדש** records what a location said, and when.
+2. **פרויקטים** — the landing screen: one card per project with its loan, open,
+   overdue and feedback counts. A banner appears when anything is overdue, and
+   filters the grid down to the projects responsible. Open a project for three
+   tabs:
+   - **פריטי הפרויקט** — **+ פריט חדש** adds an item to *this* project
+     (Type/Model/Serial/Status/Location); rows can be edited or deleted.
+   - **השאלות** — **+ השאלה חדשה** records one of the project's items loaned to
+     a location.
+   - **משוב** — **+ משוב חדש** records what a location said, and when.
+3. **מיקומים** — the directory: every unit and warehouse, with what it holds and
+   how many loans are open there. Selecting a row opens a panel with its contact,
+   its stock by type and model, and its latest feedback.
+4. **משוב מהיחידות** — every project's feedback in one feed, filterable by low
+   ratings, this month, or unrated, with average ratings per equipment type.
 
 Rows turn red when a loan is past its due date. **סמן כהוחזר** closes a loan and
 stamps the return time.
+
+The per-location counts on **מיקומים** are folded together in the browser from
+the items, loans and feedback lists (`frontend/src/locationStats.ts`), because
+`GET /api/locations` returns location rows only. If those lists outgrow a single
+fetch, that is the piece to move behind an aggregate endpoint.
 
 ---
 
@@ -157,6 +177,11 @@ Interactive docs at http://127.0.0.1:8000/docs.
 
 This is currently a **single-user local app with no authentication**. Anyone who
 can reach port 5173 or 8000 has full read/write access.
+
+The login screen is a UI placeholder for a real Supabase Auth flow: it accepts
+any non-empty credentials, keeps a flag in `sessionStorage`, and only decides
+which screen to render (`frontend/src/auth.ts`). It stops nobody — the API is
+still open, and calling it directly bypasses the screen entirely.
 
 What is already in place:
 

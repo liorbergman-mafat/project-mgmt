@@ -4,9 +4,12 @@
  */
 export const t = {
   appName: "ניהול השאלות והטמעות",
+  /** The app name broken where the sidebar wordmark wraps it. */
+  appNameLines: ["ניהול השאלות", "והטמעות"],
   nav: {
     projects: "פרויקטים",
-    units: "יחידות",
+    locations: "מיקומים",
+    feedback: "משוב מהיחידות",
     settings: "הגדרות",
   },
 
@@ -24,6 +27,28 @@ export const t = {
     required: "שדה חובה",
     back: "חזרה",
     retry: "נסה שוב",
+    clearFilter: "נקה סינון",
+    updated: "עודכן",
+  },
+
+  shell: {
+    overdueTitle: "השאלות באיחור",
+    overdueScope: (projects: number) =>
+      projects === 1 ? "מפרויקט אחד" : `מ־${projects} פרויקטים`,
+    settings: "הגדרות",
+    signOut: "יציאה",
+  },
+
+  auth: {
+    title: "ניהול השאלות והטמעות",
+    subtitle: "מערכת פנימית. גישה למשתמשים מורשים בלבד.",
+    username: "שם משתמש",
+    password: "סיסמה",
+    submit: "התחברות",
+    note: "כל הפעולות במערכת נרשמות ומשויכות למשתמש.",
+    /** Shown under the user name in the sidebar — there is no user record to read a real role from. */
+    role: "משתמש מערכת",
+    missing: "יש להזין שם משתמש וסיסמה.",
   },
 
   projects: {
@@ -37,8 +62,14 @@ export const t = {
     emptyArchived: "אין פרויקטים בארכיון.",
     archive: "העבר לארכיון",
     unarchive: "שחזר מהארכיון",
-    showArchived: "הצג ארכיון",
-    hideArchived: "הצג פעילים",
+    showArchived: "בארכיון",
+    hideArchived: "פעילים",
+    overdueBanner: (loans: number) =>
+      loans === 1
+        ? "השאלה אחת עברה את תאריך ההחזרה הצפוי"
+        : `${loans} השאלות עברו את תאריך ההחזרה הצפוי`,
+    overdueBannerAction: "הצג פרויקטים באיחור",
+    emptyOverdue: "אין פרויקטים עם השאלות באיחור.",
     statusLabels: {
       active: "פעיל",
       completed: "הושלם",
@@ -49,11 +80,16 @@ export const t = {
       open: "פתוחות",
       overdue: "באיחור",
       feedback: "משובים",
+      /** Longer forms, for the project-detail stat strip. */
+      items: "פריטים בפרויקט",
+      openLoans: "השאלות פתוחות",
     },
   },
 
   projectItems: {
     title: "פריטי הפרויקט",
+    /** The items table shows type and model in one column. */
+    typeAndModel: "סוג ודגם",
     new: "פריט חדש",
     edit: "עריכת פריט",
     type: "סוג",
@@ -63,6 +99,7 @@ export const t = {
     location: "מיקום",
     selectTypeFirst: "בחר סוג תחילה",
     empty: "טרם נוספו פריטים לפרויקט זה.",
+    listsEmpty: "הרשימות עדיין ריקות — הגדר סוגים, סטטוסים ומיקומים בעמוד ״הגדרות״ תחילה.",
   },
 
   loans: {
@@ -79,6 +116,9 @@ export const t = {
     markReturned: "סמן כהוחזר",
     overdue: "באיחור",
     empty: "לא הושאלו פריטים בפרויקט זה.",
+    noItems: "אין עדיין פריטים בפרויקט זה — הוסף פריט תחילה.",
+    noLocations: "אין מיקומים רשומים — הוסף מיקום בעמוד ״הגדרות״ תחילה.",
+    dueBeforeLoaned: "תאריך ההחזרה הצפוי חייב להיות אחרי תאריך ההשאלה.",
     statusLabels: {
       loaned: "מושאל",
       returned: "הוחזר",
@@ -93,9 +133,27 @@ export const t = {
     relatedLoan: "השאלה קשורה",
     generalFeedback: "משוב כללי לפרויקט",
     rating: "דירוג",
+    unrated: "ללא דירוג",
     content: "תוכן המשוב",
     at: "תאריך המשוב",
     empty: "טרם התקבל משוב בפרויקט זה.",
+
+    /* The cross-project feed reached from the sidebar. */
+    feedTitle: "משוב מהיחידות",
+    feedSubtitle: "מה שנשלח מהשטח, לפי סדר הגעה",
+    feedEmpty: "טרם התקבל משוב במערכת.",
+    noMatches: "אין משוב התואם לסינון.",
+    filters: {
+      all: "הכול",
+      lowRated: "דירוג נמוך",
+      thisMonth: "החודש",
+      unrated: "ללא דירוג",
+    },
+    averageByType: "ממוצע דירוג לפי סוג ציוד",
+    averageEmpty: "אין עדיין משוב מדורג.",
+    monthCount: "משובים החודש",
+    monthScope: (locations: number) =>
+      locations === 1 ? "מיחידה אחת" : `מ־${locations} יחידות שונות`,
   },
 
   settings: {
@@ -107,6 +165,10 @@ export const t = {
       statuses: "סטטוסים",
       locations: "מיקומים",
     },
+    entries: (n: number) => (n === 1 ? "רשומה אחת" : `${n} רשומות`),
+    note:
+      "רשימות אלו מזינות את כל שדות הבחירה בכל טופס במערכת. " +
+      "מחיקת רשומה שנעשה בה שימוש תיחסם.",
     showLinkedItems: "הצג פריטים",
     linkedItemsEmpty: "לא נמצאו פריטים.",
     linkedItemsTitle: (name: string) => `פריטים המשויכים ל״${name}״`,
@@ -115,23 +177,43 @@ export const t = {
   itemTypes: {
     name: "שם הסוג",
     new: "סוג חדש",
+    edit: "עריכת סוג",
     empty: "אין עדיין סוגים.",
+    modelCount: (n: number) => (n === 1 ? "דגם אחד" : `${n} דגמים`),
   },
 
   itemModels: {
     name: "שם הדגם",
     type: "סוג",
     new: "דגם חדש",
+    edit: "עריכת דגם",
     empty: "אין עדיין דגמים.",
   },
 
   itemStatuses: {
     name: "שם הסטטוס",
     new: "סטטוס חדש",
+    edit: "עריכת סטטוס",
     empty: "אין עדיין סטטוסים.",
   },
 
   locations: {
+    /* The directory screen reached from the sidebar. */
+    title: "מיקומים",
+    subtitle: "יחידות ומחסנים — היכן שנמצא כל ציוד",
+    affiliation: "שייכות",
+    itemCount: "פריטים",
+    itemsHere: "פריטים כאן",
+    openLoans: "השאלות פתוחות",
+    overdue: "באיחור",
+    contact: "איש קשר",
+    stock: "ציוד במיקום",
+    stockEmpty: "אין פריטים רשומים במיקום זה.",
+    lastFeedback: "משוב אחרון",
+    lastFeedbackEmpty: "טרם התקבל משוב ממיקום זה.",
+    openDetail: "הצג פריטים ביחידה",
+    noSelection: "בחר מיקום מהרשימה.",
+
     name: "שם",
     kind: "סוג מיקום",
     category: "קטגוריה",
@@ -143,16 +225,11 @@ export const t = {
     new: "מיקום חדש",
     edit: "עריכת מיקום",
     empty: "אין עדיין מיקומים.",
-    battalionCount: (n: number) => (n === 1 ? "גדוד אחד" : `${n} גדודים`),
     noMatches: "אין מיקומים התואמים לסינון.",
-    showing: (shown: number, total: number) => `מציג ${shown} מתוך ${total}`,
   },
 
+  /** The one-location screen; "unit" is what a location of kind יחידה is called. */
   units: {
-    title: "יחידות",
-    subtitle: "כל היחידות שהוגדרו במערכת",
-    empty: "אין עדיין יחידות. ניתן להגדיר יחידות בעמוד ״הגדרות״.",
-    noMatches: "אין יחידות התואמות לסינון.",
     notFound: "היחידה לא נמצאה.",
     itemsTitle: "פריטים ביחידה",
     itemsEmpty: "לא נמצאו פריטים ביחידה זו.",
