@@ -301,6 +301,100 @@ p {
   gap: 0.4rem;
 }
 
+/* ------------------------------------------------------ project sub-groups */
+.project-group {
+  margin-top: 1.6rem;
+}
+.project-group:first-child {
+  margin-top: 0;
+}
+.project-group-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+.project-group-header a {
+  color: var(--text);
+  text-decoration: none;
+}
+.project-group-header a:hover {
+  color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+   Filter bar — chip rows for the low-cardinality fields, a select for the
+   long one. Sits above a table and narrows what it renders.
+   -------------------------------------------------------------------------- */
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.filter-group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  flex: 0 0 5.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.chip {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.28rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.chip-on,
+.chip-on:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* The select is full-width by default; here it sits inline with its label. */
+.filter-select {
+  width: auto;
+  min-width: 14rem;
+  max-width: 100%;
+  font-size: 0.85rem;
+  padding-block: 0.28rem;
+}
+
+.filter-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
 .stat-row {
   display: flex;
   gap: 1.4rem;
@@ -398,6 +492,54 @@ tr.row-alert:hover {
 td.actions {
   text-align: end;
   white-space: nowrap;
+}
+td.actions .btn + .btn {
+  margin-inline-start: 0.4rem;
+}
+
+/* --------------------------------------------------------------------------
+   Collapsible brigade rows: one row per brigade, expanding to its battalions.
+   The toggle is a full-width button so the whole bar is clickable.
+   -------------------------------------------------------------------------- */
+.group-row td {
+  padding: 0;
+}
+
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  font: inherit;
+  text-align: start;
+  padding: 0.5rem 0.9rem;
+  border: 0;
+  background: var(--grey-bg);
+  color: inherit;
+  cursor: pointer;
+}
+.group-toggle:hover {
+  background: rgba(47, 95, 208, 0.06);
+}
+
+/* Fixed width keeps the labels aligned as the arrow flips. */
+.chevron {
+  flex: 0 0 0.85rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.group-name {
+  font-weight: 600;
+}
+
+/* The count sits at the far end, away from the name. */
+.group-toggle .muted {
+  margin-inline-start: auto;
+}
+
+.leaf-cell {
+  padding-inline-start: 2rem;
 }
 
 /* -------------------------------------------------------------- feedback */

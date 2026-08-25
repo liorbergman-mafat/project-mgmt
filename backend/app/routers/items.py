@@ -18,10 +18,24 @@ router = APIRouter(prefix="/api/items", tags=["items"])
 
 
 @router.get("", response_model=list[Item])
-def list_items(project_id: UUID | None = None) -> list[Item]:
+def list_items(
+    project_id: UUID | None = None,
+    location_id: UUID | None = None,
+    type_id: UUID | None = None,
+    model_id: UUID | None = None,
+    status_id: UUID | None = None,
+) -> list[Item]:
     query = table("items").select(ITEM_SELECT).order("created_at", desc=True)
     if project_id:
         query = query.eq("project_id", str(project_id))
+    if location_id:
+        query = query.eq("location_id", str(location_id))
+    if type_id:
+        query = query.eq("type_id", str(type_id))
+    if model_id:
+        query = query.eq("model_id", str(model_id))
+    if status_id:
+        query = query.eq("status_id", str(status_id))
     return [Item(**row) for row in rows(query.execute())]
 
 

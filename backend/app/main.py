@@ -17,6 +17,20 @@ from .routers import (
 
 settings = get_settings()
 
+# Maps a foreign-key constraint name (Postgres' default "<table>_<column>_fkey"
+# naming) to a Hebrew explanation of what is still pointing at the row the
+# user tried to delete. Every "on delete restrict" FK in schema.sql needs an
+# entry here, or its violation surfaces as a raw Postgres message instead.
+FK_VIOLATION_MESSAGES: dict[str, str] = {
+    "item_models_type_id_fkey": "לא ניתן למחוק סוג זה — קיימים דגמים המשויכים אליו.",
+    "items_type_id_fkey": "לא ניתן למחוק סוג זה — קיימים פריטים מהסוג הזה.",
+    "items_model_id_fkey": "לא ניתן למחוק דגם זה — קיימים פריטים מהדגם הזה.",
+    "items_status_id_fkey": "לא ניתן למחוק סטטוס זה — קיימים פריטים בסטטוס הזה.",
+    "items_location_id_fkey": "לא ניתן למחוק מיקום זה — קיימים פריטים המשויכים אליו.",
+    "loans_location_id_fkey": "לא ניתן למחוק מיקום זה — קיימות השאלות המשויכות אליו.",
+    "feedback_location_id_fkey": "לא ניתן למחוק מיקום זה — קיים משוב המשויך אליו.",
+}
+
 app = FastAPI(
     title="Loan Manager API",
     description="Implementation and item loans for military units, grouped by project.",
@@ -42,9 +56,15 @@ def handle_postgrest_error(request: Request, exc: APIError) -> JSONResponse:
     That is a client mistake (409), not a server fault.
     """
     status = 409 if exc.code == "23503" else 400
+    detail = exc.message
+    if exc.code == "23503":
+        for constraint, friendly in FK_VIOLATION_MESSAGES.items():
+            if constraint in (exc.message or ""):
+                detail = friendly
+                break
     return JSONResponse(
         status_code=status,
-        content={"detail": exc.message, "hint": exc.hint, "code": exc.code},
+        content={"detail": detail, "hint": exc.hint, "code": exc.code},
     )
 
 

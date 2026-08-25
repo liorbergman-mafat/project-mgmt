@@ -78,13 +78,28 @@ export const api = {
   },
   locations: {
     list: () => request<Location[]>("/locations"),
+    get: (id: string) => request<Location>(`/locations/${id}`),
     create: (body: Partial<Location>) => post<Location>("/locations", body),
     update: (id: string, body: Partial<Location>) => patch<Location>(`/locations/${id}`, body),
     remove: (id: string) => del(`/locations/${id}`),
   },
   items: {
-    list: (projectId?: string) =>
-      request<Item[]>(`/items${projectId ? `?project_id=${projectId}` : ""}`),
+    list: (params?: {
+      projectId?: string;
+      locationId?: string;
+      typeId?: string;
+      modelId?: string;
+      statusId?: string;
+    }) => {
+      const query = new URLSearchParams();
+      if (params?.projectId) query.set("project_id", params.projectId);
+      if (params?.locationId) query.set("location_id", params.locationId);
+      if (params?.typeId) query.set("type_id", params.typeId);
+      if (params?.modelId) query.set("model_id", params.modelId);
+      if (params?.statusId) query.set("status_id", params.statusId);
+      const qs = query.toString();
+      return request<Item[]>(`/items${qs ? `?${qs}` : ""}`);
+    },
     create: (body: Record<string, unknown>) => post<Item>("/items", body),
     update: (id: string, body: Record<string, unknown>) => patch<Item>(`/items/${id}`, body),
     remove: (id: string) => del(`/items/${id}`),

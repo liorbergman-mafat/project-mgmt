@@ -91,6 +91,7 @@ class ItemStatus(ItemStatusCreate):
 class LocationCreate(BaseModel):
     name: str
     kind: Optional[str] = None
+    category: Optional[str] = None
     brigade: Optional[str] = None
     battalion: Optional[str] = None
     contact_name: Optional[str] = None
@@ -101,6 +102,7 @@ class LocationCreate(BaseModel):
 class LocationUpdate(BaseModel):
     name: Optional[str] = None
     kind: Optional[str] = None
+    category: Optional[str] = None
     brigade: Optional[str] = None
     battalion: Optional[str] = None
     contact_name: Optional[str] = None

@@ -78,10 +78,25 @@ export function EmptyState({ message }: { message: string }) {
   return <p className="empty-state">{message}</p>;
 }
 
-export function ErrorBanner({ error, onRetry }: { error: string; onRetry?: () => void }) {
+export function ErrorBanner({
+  error,
+  onRetry,
+  actionLabel,
+  onAction,
+}: {
+  error: string;
+  onRetry?: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
     <div className="error-banner">
       <span>{error}</span>
+      {actionLabel && onAction && (
+        <button className="btn btn-ghost" onClick={onAction}>
+          {actionLabel}
+        </button>
+      )}
       {onRetry && (
         <button className="btn btn-ghost" onClick={onRetry}>
           {t.common.retry}
@@ -105,5 +120,39 @@ export function Rating({ value }: { value: number | null }) {
       {"★".repeat(value)}
       <span className="rating-dim">{"★".repeat(5 - value)}</span>
     </span>
+  );
+}
+
+/* -------------------------------------------------------------------------
+ * FilterChips — one row of filter buttons. Always exactly one selected —
+ * there is no "all".
+ * ---------------------------------------------------------------------- */
+export function FilterChips({
+  label,
+  values,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  values: string[];
+  selected: string;
+  onSelect: (next: string) => void;
+}) {
+  return (
+    <div className="filter-group">
+      <span className="filter-label">{label}</span>
+      <div className="chips">
+        {values.map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={`chip${selected === value ? " chip-on" : ""}`}
+            onClick={() => onSelect(value)}
+          >
+            {value}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

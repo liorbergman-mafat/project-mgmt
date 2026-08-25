@@ -64,13 +64,21 @@ create table if not exists item_statuses (
 
 -- ---------------------------------------------------------------------------
 -- locations — everywhere an item or loan can point to: a borrowing unit
--- (kind='יחידה', grouped by brigade/battalion), a warehouse, or anywhere
--- else. Replaces the old standalone "units" table. Managed from Settings.
+-- (kind='יחידה', grouped by category/brigade/battalion), a warehouse, or
+-- anywhere else. Replaces the old standalone "units" table. Managed from
+-- Settings.
+--
+-- category is the outermost grouping (סדיר קחצ״ר, כלל צה״לי, בא״חים, …).
+-- It is not decoration: the same brigade can sit under two categories —
+-- 1- גולני, 35- צנחנים, 84- גבעתי, 900- כפיר, 933- נחל and הנדסה קרבית
+-- each appear twice — so (category, brigade, battalion) is what actually
+-- identifies a unit, and brigade alone does not.
 -- ---------------------------------------------------------------------------
 create table if not exists locations (
     id            uuid primary key default gen_random_uuid(),
     name          text        not null,
     kind          text,
+    category      text,
     brigade       text,
     battalion     text,
     contact_name  text,
@@ -78,6 +86,9 @@ create table if not exists locations (
     notes         text,
     created_at    timestamptz not null default now()
 );
+
+-- Migration for databases created before locations.category existed.
+alter table locations add column if not exists category text;
 
 -- ---------------------------------------------------------------------------
 -- items — one row per physical item, owned by exactly one project (no more

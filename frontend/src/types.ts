@@ -40,6 +40,7 @@ export interface Location {
   id: string;
   name: string;
   kind: string | null;
+  category: string | null;
   brigade: string | null;
   battalion: string | null;
   contact_name: string | null;

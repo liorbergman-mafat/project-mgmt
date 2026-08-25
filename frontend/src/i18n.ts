@@ -6,6 +6,7 @@ export const t = {
   appName: "ניהול השאלות והטמעות",
   nav: {
     projects: "פרויקטים",
+    units: "יחידות",
     settings: "הגדרות",
   },
 
@@ -106,6 +107,9 @@ export const t = {
       statuses: "סטטוסים",
       locations: "מיקומים",
     },
+    showLinkedItems: "הצג פריטים",
+    linkedItemsEmpty: "לא נמצאו פריטים.",
+    linkedItemsTitle: (name: string) => `פריטים המשויכים ל״${name}״`,
   },
 
   itemTypes: {
@@ -130,13 +134,29 @@ export const t = {
   locations: {
     name: "שם",
     kind: "סוג מיקום",
+    category: "קטגוריה",
     brigade: "חטיבה",
     battalion: "גדוד",
     contactName: "איש קשר",
     contactPhone: "טלפון",
     notes: "הערות",
     new: "מיקום חדש",
+    edit: "עריכת מיקום",
     empty: "אין עדיין מיקומים.",
+    battalionCount: (n: number) => (n === 1 ? "גדוד אחד" : `${n} גדודים`),
+    noMatches: "אין מיקומים התואמים לסינון.",
+    showing: (shown: number, total: number) => `מציג ${shown} מתוך ${total}`,
+  },
+
+  units: {
+    title: "יחידות",
+    subtitle: "כל היחידות שהוגדרו במערכת",
+    empty: "אין עדיין יחידות. ניתן להגדיר יחידות בעמוד ״הגדרות״.",
+    noMatches: "אין יחידות התואמות לסינון.",
+    notFound: "היחידה לא נמצאה.",
+    itemsTitle: "פריטים ביחידה",
+    itemsEmpty: "לא נמצאו פריטים ביחידה זו.",
+    project: "פרויקט",
   },
 } as const;
 
