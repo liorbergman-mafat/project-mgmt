@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
+import { useAsync } from "../hooks";
 import { t } from "../i18n";
-import { ErrorBanner, Field, FormActions, Modal } from "./ui";
-import type { Location } from "../types";
+import { ContactFormModal } from "./ContactFormModal";
+import { ErrorBanner, Field, FormActions, Modal, Spinner } from "./ui";
+import type { Contact, Location } from "../types";
 
 /**
  * Add / edit a location. Lives here rather than on a page because both the
@@ -88,20 +90,6 @@ export function LocationFormModal({
           <Field label={t.locations.battalion}>
             <input value={form.battalion} onChange={(e) => set("battalion")(e.target.value)} />
           </Field>
-          <Field label={t.locations.contactName}>
-            <input
-              value={form.contact_name}
-              onChange={(e) => set("contact_name")(e.target.value)}
-            />
-          </Field>
-
-          <Field label={t.locations.contactPhone}>
-            <input
-              type="tel"
-              value={form.contact_phone}
-              onChange={(e) => set("contact_phone")(e.target.value)}
-            />
-          </Field>
 
           <Field label={t.locations.notes} span>
             <textarea rows={2} value={form.notes} onChange={(e) => set("notes")(e.target.value)} />
@@ -116,6 +104,84 @@ export function LocationFormModal({
 
         <FormActions saving={saving} disabled={!form.name.trim()} onCancel={onClose} />
       </form>
+
+      {location && <ContactsPanel locationId={location.id} />}
     </Modal>
+  );
+}
+
+/** The "who can sign for a loan" list nested inside an existing location's edit modal. */
+function ContactsPanel({ locationId }: { locationId: string }) {
+  const contacts = useAsync(() => api.contacts.list(locationId), [locationId]);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Contact | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function remove(contact: Contact) {
+    if (!confirm(t.common.confirmDelete)) return;
+    setError(null);
+    try {
+      await api.contacts.remove(contact.id);
+      contacts.reload();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <div className="form-body single" style={{ paddingTop: 0 }}>
+      <div className="form-section">{t.contacts.title}</div>
+
+      {contacts.loading && <Spinner />}
+      {contacts.error && <ErrorBanner error={contacts.error} onRetry={contacts.reload} />}
+      {error && <ErrorBanner error={error} />}
+
+      {contacts.data && contacts.data.length === 0 && (
+        <p className="muted small">{t.contacts.empty}</p>
+      )}
+
+      {(contacts.data ?? []).map((contact) => (
+        <div className="list-row" key={contact.id}>
+          <div>
+            <span className="list-row-name">{contact.full_name}</span>
+            <span className="list-row-meta">
+              {" "}
+              · {contact.phone}
+              {contact.role ? ` · ${contact.role}` : ""}
+            </span>
+          </div>
+          <div className="row-actions">
+            <button type="button" className="link-btn" onClick={() => setEditing(contact)}>
+              {t.common.edit}
+            </button>
+            <button type="button" className="link-btn danger" onClick={() => remove(contact)}>
+              {t.common.delete}
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <div className="group-foot">
+        <button type="button" className="link-btn" onClick={() => setAdding(true)}>
+          + {t.contacts.add}
+        </button>
+      </div>
+
+      {(adding || editing) && (
+        <ContactFormModal
+          locationId={locationId}
+          contact={editing}
+          onClose={() => {
+            setAdding(false);
+            setEditing(null);
+          }}
+          onSaved={() => {
+            setAdding(false);
+            setEditing(null);
+            contacts.reload();
+          }}
+        />
+      )}
+    </div>
   );
 }

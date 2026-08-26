@@ -8,9 +8,9 @@ export const t = {
   appNameLines: ["ניהול השאלות", "והטמעות"],
   nav: {
     projects: "פרויקטים",
+    equipment: "ציוד",
     locations: "מיקומים",
     feedback: "משוב מהיחידות",
-    settings: "הגדרות",
   },
 
   common: {
@@ -30,7 +30,6 @@ export const t = {
   },
 
   shell: {
-    settings: "הגדרות",
     signOut: "יציאה",
   },
 
@@ -80,18 +79,18 @@ export const t = {
 
   projectItems: {
     title: "פריטי הפרויקט",
-    /** The items table shows type and model in one column. */
-    typeAndModel: "סוג ודגם",
+    /** The items table shows category and model in one column. */
+    typeAndModel: "קטגוריה ודגם",
     new: "פריט חדש",
     edit: "עריכת פריט",
-    type: "סוג",
+    type: "קטגוריה",
     model: "דגם",
     serialId: "מספר סידורי",
     status: "סטטוס",
     location: "מיקום",
-    selectTypeFirst: "בחר סוג תחילה",
+    selectTypeFirst: "בחר קטגוריה תחילה",
     empty: "טרם נוספו פריטים לפרויקט זה.",
-    listsEmpty: "הרשימות עדיין ריקות — הגדר סוגים, סטטוסים ומיקומים בעמוד ״הגדרות״ תחילה.",
+    listsEmpty: "אין עדיין קטגוריות ציוד מוגדרות — הגדר קטגוריות ודגמים בעמוד ״ציוד״ תחילה.",
   },
 
   loans: {
@@ -104,10 +103,16 @@ export const t = {
     loanedAt: "תאריך השאלה",
     returnedAt: "הוחזר בתאריך",
     notes: "הערות",
+    signer: "איש קשר לחתימה",
+    chooseSigner: "בחר איש קשר",
+    selectLocationFirst: "בחר מיקום תחילה",
+    noContactsForLocation: "אין אנשי קשר רשומים ליחידה זו.",
+    addContact: "הוסף איש קשר",
     markReturned: "סמן כהוחזר",
     empty: "לא הושאלו פריטים בפרויקט זה.",
     noItems: "אין עדיין פריטים בפרויקט זה — הוסף פריט תחילה.",
-    noLocations: "אין מיקומים רשומים — הוסף מיקום בעמוד ״הגדרות״ תחילה.",
+    allLoaned: "כל הפריטים בפרויקט זה מושאלים כרגע.",
+    noLocations: "אין מיקומים רשומים — הוסף מיקום בעמוד ״מיקומים״ תחילה.",
     statusLabels: {
       loaned: "מושאל",
       returned: "הוחזר",
@@ -138,52 +143,69 @@ export const t = {
       thisMonth: "החודש",
       unrated: "ללא דירוג",
     },
-    averageByType: "ממוצע דירוג לפי סוג ציוד",
+    averageByType: "ממוצע דירוג לפי קטגוריית ציוד",
     averageEmpty: "אין עדיין משוב מדורג.",
     monthCount: "משובים החודש",
     monthScope: (locations: number) =>
       locations === 1 ? "מיחידה אחת" : `מ־${locations} יחידות שונות`,
   },
 
-  settings: {
-    title: "הגדרות",
-    subtitle: "ניהול רשימות הבחירה של המערכת",
-    tabs: {
-      types: "סוגים",
-      models: "דגמים",
-      statuses: "סטטוסים",
-      locations: "מיקומים",
-    },
+  /** The standalone equipment page — categories, models, and the physical items under them. */
+  equipmentPage: {
+    title: "ציוד",
+    subtitle: "ניהול קטגוריות ציוד, דגמים והפריטים שנרשמו תחתיהם",
+    listTitle: "קטגוריות ציוד",
     entries: (n: number) => (n === 1 ? "רשומה אחת" : `${n} רשומות`),
     note:
-      "רשימות אלו מזינות את כל שדות הבחירה בכל טופס במערכת. " +
+      "רשימות הקטגוריות והדגמים מזינות את טופס הוספת הציוד בכל פרויקט. " +
       "מחיקת רשומה שנעשה בה שימוש תיחסם.",
     showLinkedItems: "הצג פריטים",
     linkedItemsEmpty: "לא נמצאו פריטים.",
     linkedItemsTitle: (name: string) => `פריטים המשויכים ל״${name}״`,
+    /** A model is optional — equipment can be linked straight to a category with no model. */
+    addItemToType: "ציוד ישירות לקטגוריה זו",
+    noModel: "ללא דגם",
+    /** The second browse-and-add group on the page, alongside categories: every project, its equipment. */
+    projectsTitle: "פרויקטים",
+    noProjectsYet: "אין עדיין פרויקטים — צור פרויקט בעמוד ״פרויקטים״ תחילה.",
+    addItemToProject: "ציוד לפרויקט זה",
+    emptyForProject: "אין עדיין ציוד רשום לפרויקט זה.",
+    /** The categories tree is tucked away behind this toggle — the page itself is project-first. */
+    manageCategories: "ניהול קטגוריות ציוד",
+    hideCategories: "הסתר ניהול קטגוריות",
   },
 
   itemTypes: {
-    name: "שם הסוג",
-    new: "סוג חדש",
-    edit: "עריכת סוג",
-    empty: "אין עדיין סוגים.",
+    name: "שם הקטגוריה",
+    new: "קטגוריה חדשה",
+    edit: "עריכת קטגוריה",
+    empty: "אין עדיין קטגוריות. הוסף קטגוריה כדי להתחיל.",
     modelCount: (n: number) => (n === 1 ? "דגם אחד" : `${n} דגמים`),
   },
 
   itemModels: {
     name: "שם הדגם",
-    type: "סוג",
+    type: "קטגוריה",
     new: "דגם חדש",
     edit: "עריכת דגם",
     empty: "אין עדיין דגמים.",
+    /** The nested list under one category on the Equipment page. */
+    emptyForType: "אין דגמים לקטגוריה זו.",
+    addToType: "דגם לקטגוריה זו",
   },
 
-  itemStatuses: {
-    name: "שם הסטטוס",
-    new: "סטטוס חדש",
-    edit: "עריכת סטטוס",
-    empty: "אין עדיין סטטוסים.",
+  /** One physical piece of equipment — a serial number under a model. */
+  equipment: {
+    new: "ציוד חדש",
+    edit: "עריכת ציוד",
+    project: "פרויקט",
+    noSerial: "ללא מספר סידורי",
+    unitCount: (n: number) => (n === 1 ? "פריט אחד" : `${n} פריטים`),
+    emptyForModel: "אין ציוד רשום לדגם זה.",
+    addToModel: "ציוד מדגם זה",
+    noProjects: "אין עדיין פרויקטים — צור פרויקט תחילה.",
+    /** Says where status and location come from, since the add form does not ask. */
+    defaultsNote: "ציוד חדש נרשם כנמצא במחסן. הסטטוס והמיקום ניתנים לשינוי בעריכת הפריט.",
   },
 
   locations: {
@@ -212,6 +234,7 @@ export const t = {
     new: "מיקום חדש",
     edit: "עריכת מיקום",
     empty: "אין עדיין מיקומים.",
+    emptyDirectory: "אין עדיין מיקומים. צור את הראשון כדי להתחיל.",
     noMatches: "אין מיקומים התואמים לסינון.",
     battalionCount: (n: number) => (n === 1 ? "גדוד אחד" : `${n} גדודים`),
   },
@@ -222,6 +245,19 @@ export const t = {
     itemsTitle: "פריטים ביחידה",
     itemsEmpty: "לא נמצאו פריטים ביחידה זו.",
     project: "פרויקט",
+  },
+
+  /** People who can sign for a loan on behalf of a location — managed from the locations page. */
+  contacts: {
+    title: "אנשי קשר לחתימה",
+    new: "איש קשר חדש",
+    edit: "עריכת איש קשר",
+    fullName: "שם מלא",
+    personalNumber: "מספר אישי",
+    phone: "טלפון",
+    role: "תפקיד",
+    empty: "אין אנשי קשר רשומים ליחידה זו.",
+    add: "הוסף איש קשר",
   },
 } as const;
 

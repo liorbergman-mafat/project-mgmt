@@ -1,4 +1,5 @@
 import type {
+  Contact,
   Feedback,
   Item,
   ItemModel,
@@ -69,12 +70,9 @@ export const api = {
     update: (id: string, body: Partial<ItemModel>) => patch<ItemModel>(`/item-models/${id}`, body),
     remove: (id: string) => del(`/item-models/${id}`),
   },
+  /** Read-only: statuses are a fixed, seeded list — there is no UI to add or edit them. */
   itemStatuses: {
     list: () => request<ItemStatus[]>("/item-statuses"),
-    create: (body: Partial<ItemStatus>) => post<ItemStatus>("/item-statuses", body),
-    update: (id: string, body: Partial<ItemStatus>) =>
-      patch<ItemStatus>(`/item-statuses/${id}`, body),
-    remove: (id: string) => del(`/item-statuses/${id}`),
   },
   locations: {
     list: () => request<Location[]>("/locations"),
@@ -82,6 +80,13 @@ export const api = {
     create: (body: Partial<Location>) => post<Location>("/locations", body),
     update: (id: string, body: Partial<Location>) => patch<Location>(`/locations/${id}`, body),
     remove: (id: string) => del(`/locations/${id}`),
+  },
+  contacts: {
+    list: (locationId?: string) =>
+      request<Contact[]>(`/contacts${locationId ? `?location_id=${locationId}` : ""}`),
+    create: (body: Record<string, unknown>) => post<Contact>("/contacts", body),
+    update: (id: string, body: Record<string, unknown>) => patch<Contact>(`/contacts/${id}`, body),
+    remove: (id: string) => del(`/contacts/${id}`),
   },
   items: {
     list: (params?: {

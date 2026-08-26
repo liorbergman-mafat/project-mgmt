@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Starts the API and the UI, each in the background.
 # Usage: ./scripts/start.sh
+# Works on Linux/macOS and on Windows under Git Bash.
 
 set -euo pipefail
 
@@ -12,23 +13,37 @@ if [ ! -f "$root/backend/.env" ]; then
     exit 1
 fi
 
-if [ ! -x "$root/backend/.venv/bin/python" ]; then
+# venv layout differs: bin/python on Linux/macOS, Scripts/python.exe on Windows.
+if [ -x "$root/backend/.venv/bin/python" ]; then
+    python="$root/backend/.venv/bin/python"
+elif [ -x "$root/backend/.venv/Scripts/python.exe" ]; then
+    python="$root/backend/.venv/Scripts/python.exe"
+else
     echo -e "\033[31mbackend/.venv is missing.\033[0m"
-    echo -e "\033[33mCreate it first, e.g.: cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt\033[0m"
+    echo -e "\033[33mCreate it first, e.g.: cd backend && python -m venv .venv\033[0m"
+    echo -e "\033[33mthen: .venv/bin/pip install -r requirements.txt   (Windows: .venv/Scripts/pip.exe)\033[0m"
     exit 1
 fi
 
+api_pid=""
+ui_pid=""
+
+cleaned=""
 cleanup() {
+    # Trapped on both INT and EXIT; only run the body once.
+    [ -n "$cleaned" ] && return
+    cleaned=1
     echo ""
     echo "Stopping API and UI..."
-    kill "$api_pid" "$ui_pid" 2>/dev/null || true
+    [ -n "$api_pid" ] && kill "$api_pid" 2>/dev/null || true
+    [ -n "$ui_pid" ] && kill "$ui_pid" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
 echo -e "\033[36mStarting API on http://127.0.0.1:8000 ...\033[0m"
 (
     cd "$root/backend"
-    ./.venv/bin/python -m uvicorn app.main:app --reload
+    "$python" -m uvicorn app.main:app --reload
 ) &
 api_pid=$!
 

@@ -1,0 +1,6 @@
+# Shell scripts must keep LF endings, otherwise bash fails with
+# "bad interpreter: No such file or directory" on the CRLF shebang.
+*.sh text eol=lf
+
+# PowerShell scripts are Windows-only; keep them CRLF.
+*.ps1 text eol=crlf

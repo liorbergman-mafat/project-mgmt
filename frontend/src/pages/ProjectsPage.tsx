@@ -47,19 +47,24 @@ export default function ProjectsPage() {
           <p className="subtitle">{t.projects.subtitle}</p>
         </div>
         <div className="header-actions">
-          <Segmented
-            value={scope}
-            onChange={setScope}
-            options={[
-              { key: "live", label: t.projects.hideArchived },
-              { key: "archived", label: t.projects.showArchived },
-            ]}
-          />
           <button className="btn btn-primary" onClick={() => setCreating(true)}>
             + {t.projects.new}
           </button>
         </div>
       </header>
+
+      {/* Scope is a filter, not a page action: it belongs with the other
+          sub-navigation under the header, not beside the primary button. */}
+      <div className="filter-row">
+        <Segmented
+          value={scope}
+          onChange={setScope}
+          options={[
+            { key: "live", label: t.projects.hideArchived },
+            { key: "archived", label: t.projects.showArchived },
+          ]}
+        />
+      </div>
 
       {error && <ErrorBanner error={error} onRetry={reload} />}
       {loading && <Spinner />}

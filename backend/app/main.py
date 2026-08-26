@@ -5,6 +5,7 @@ from postgrest.exceptions import APIError
 
 from .config import get_settings
 from .routers import (
+    contacts,
     feedback,
     item_models,
     item_statuses,
@@ -25,10 +26,10 @@ FK_VIOLATION_MESSAGES: dict[str, str] = {
     "item_models_type_id_fkey": "לא ניתן למחוק סוג זה — קיימים דגמים המשויכים אליו.",
     "items_type_id_fkey": "לא ניתן למחוק סוג זה — קיימים פריטים מהסוג הזה.",
     "items_model_id_fkey": "לא ניתן למחוק דגם זה — קיימים פריטים מהדגם הזה.",
-    "items_status_id_fkey": "לא ניתן למחוק סטטוס זה — קיימים פריטים בסטטוס הזה.",
     "items_location_id_fkey": "לא ניתן למחוק מיקום זה — קיימים פריטים המשויכים אליו.",
     "loans_location_id_fkey": "לא ניתן למחוק מיקום זה — קיימות השאלות המשויכות אליו.",
     "feedback_location_id_fkey": "לא ניתן למחוק מיקום זה — קיים משוב המשויך אליו.",
+    "loans_signer_contact_id_fkey": "לא ניתן למחוק איש קשר זה — הוא חתום על השאלות קיימות.",
 }
 
 app = FastAPI(
@@ -75,6 +76,7 @@ def health() -> dict[str, str]:
 
 app.include_router(projects.router)
 app.include_router(locations.router)
+app.include_router(contacts.router)
 app.include_router(item_types.router)
 app.include_router(item_models.router)
 app.include_router(item_statuses.router)

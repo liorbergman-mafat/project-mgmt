@@ -1,97 +1,131 @@
 /* ==========================================================================
-   Loan Manager — styles
-   Written with CSS logical properties (inline-start/end) rather than
-   left/right, so the RTL layout works without any direction-specific rules.
+   Loan Manager - styles
 
-   The token names below are the ones used in the design handoff.
+   Written with CSS logical properties (inline-start/end) rather than
+   left/right, so the RTL layout works without a single direction-specific
+   rule, and nothing is absolutely positioned to hold the flow together.
+
+   The visual language is the Atlassian Design System. Containers are flat
+   white with one hairline rule; the ground behind them is N20; elevation is
+   not used to separate things. Token names are inherited from the original
+   handoff, but every value below is a real ADS step.
    ========================================================================== */
 
 :root {
-  /* --- brand ------------------------------------------------------------ */
-  --navy: #293c8f;
-  --navy-hover: #1f2f73;
-  --navy-tint: #eef1fa;
-  --navy-tint-border: #d6ddf2;
+  /* --- brand / links ----------------------------------------------------
+     In Jira the link blue and the button blue are the same B400. */
+  --navy: #0052cc;
+  --navy-hover: #0747a6;
+  --navy-tint: #deebff;
+  --navy-tint-border: #b3d4ff;
+  /* The mark keeps its own red - it is the logo, not a UI colour. */
   --logo-red: #e92429;
 
-  /* --- text ------------------------------------------------------------- */
-  --ink: #10182b;
-  --ink-soft: #2b3448;
-  --slate: #47506b;
-  --muted: #6b7280;
-  --dim: #98a0b0;
+  /* --- accent (B ramp) --------------------------------------------------
+     B400 rest, B300 hover, B500 pressed: the Atlassian button sequence. */
+  --accent: #0052cc;
+  --accent-hover: #0065ff;
+  --accent-pressed: #0747a6;
+  --accent-soft: #deebff;
+  --accent-ring: #4c9aff;
+
+  /* --- dark navigation --------------------------------------------------
+     N800, flat. The selected row goes solid B400, the way Jira's nav does. */
+  --sidebar-bg: #172b4d;
+  --sidebar-text: #ffffff;
+  --sidebar-muted: #b3bac5;
+  --sidebar-dim: #8993a4;
+  --sidebar-line: rgba(255, 255, 255, 0.12);
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
+  --sidebar-active: #0052cc;
+  --sidebar-active-text: #ffffff;
+
+  /* --- text (N ramp) ---------------------------------------------------- */
+  --ink: #172b4d;
+  --ink-soft: #253858;
+  --slate: #42526e;
+  --muted: #6b778c;
+  --dim: #8993a4;
 
   /* --- lines and surfaces ----------------------------------------------- */
-  --border: #e2e6ec;
-  --border-strong: #d7dce4;
-  --border-hover: #a9b2c1;
-  --divider: #f1f3f6;
-  --divider-light: #eef0f4;
+  --border: #dfe1e6;
+  --border-strong: #c1c7d0;
+  --border-hover: #b3bac5;
+  --divider: #ebecf0;
+  --divider-light: #ebecf0;
   --surface: #ffffff;
   --surface-alt: #fafbfc;
-  --bg: #f4f6f8;
-  --row-selected: #f7f9fc;
+  --bg: #f4f5f7;
+  /* Jira tints the picked row in B50 rather than greying it. */
+  --row-selected: #deebff;
 
-  /* --- status ----------------------------------------------------------- */
-  --green: #12664a;
-  --green-bg: #e6f4ef;
-  --amber: #a15c07;
-  --amber-bg: #fef3e2;
-  --red: #c31c21;
-  --red-deep: #8e1418;
-  --red-tint: #fdecec;
-  --red-tint-border: #f6c9c9;
-  --cyan: #2ba7df;
-  --star: #e3a008;
+  /* --- status -----------------------------------------------------------
+     The Atlassian lozenge pairs: bold text on its own pale ground. */
+  --green: #006644;
+  --green-bg: #e3fcef;
+  --amber: #974f0c;
+  --amber-bg: #fff0b3;
+  --red: #de350b;
+  --red-deep: #bf2600;
+  --red-tint: #ffebe6;
+  --red-tint-border: #ffbdad;
+  --cyan: #00a3bf;
+  --star: #ffab00;
 
-  /* --- shape ------------------------------------------------------------ */
-  --shadow-card: 0 2px 10px rgba(16, 24, 43, 0.06);
-  --shadow-modal: 0 18px 48px rgba(16, 24, 43, 0.28);
-  --cell-pad: 13px;
+  /* --- shape ------------------------------------------------------------
+     Flat: containers are drawn with a 1px N40 rule, never a shadow. Shadow
+     is reserved for things that genuinely float above the page. */
+  --shadow-card: none;
+  --shadow-modal:
+    0 20px 32px -8px rgba(9, 30, 66, 0.25),
+    0 0 1px rgba(9, 30, 66, 0.31);
+  --hairline: var(--border);
+  --radius-card: 3px;
+  /* Enterprise density: rows are shorter than they were. */
+  --cell-pad: 9px;
 
-  font-family: Heebo, "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family:
+    Heebo, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   color-scheme: light;
 }
 
 * {
   box-sizing: border-box;
 }
-
 body {
   margin: 0;
-  background-color: var(--bg);
-  /* Two-tone dot grid, navy over a fainter red, offset half a cell. */
-  background-image: radial-gradient(rgba(41, 60, 143, 0.07) 1px, transparent 1px),
-    radial-gradient(rgba(233, 36, 41, 0.05) 1px, transparent 1px);
-  background-size: 26px 26px, 26px 26px;
-  background-position: 0 0, 13px 13px;
+  /* Flat N20. Jira puts no texture behind its content - the page is a plain
+     ground and the bordered white containers do the structural work. */
+  background: var(--bg);
   color: var(--ink);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.43;
 }
 
+/* One family throughout, on the Atlassian type scale. The display face the
+   headings used to carry read as marketing beside a dense issue table. */
 h1,
 h2,
 h3 {
   margin: 0;
-  font-family: Rubik, Heebo, sans-serif;
-  font-weight: 700;
-  line-height: 1.3;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.008em;
+  color: var(--ink);
 }
+
 h1 {
-  font-size: 27px;
+  font-size: 24px;
 }
 h2 {
   font-size: 20px;
 }
 h3 {
-  font-size: 19px;
+  font-size: 16px;
 }
-
 p {
   margin: 0;
 }
-
 a {
   color: var(--navy);
   text-decoration: none;
@@ -99,7 +133,6 @@ a {
 a:hover {
   color: var(--navy-hover);
 }
-
 .muted {
   color: var(--muted);
 }
@@ -107,27 +140,26 @@ a:hover {
   color: var(--dim);
 }
 .small {
-  font-size: 13.5px;
+  font-size: 12px;
 }
-/* Serials, dates, quantities and phone numbers all line up in columns. */
 .num {
   font-variant-numeric: tabular-nums;
 }
-
-/* ---------------------------------------------------------------- layout */
 .app {
   display: grid;
   grid-template-columns: 252px 1fr;
   min-height: 100vh;
 }
-
+/* ---------------------------------------------------------------- layout */
 .sidebar {
-  background: var(--surface);
-  border-inline-end: 1px solid var(--border);
-  padding: 24px 18px;
+  /* Flat dark rail, painted the way Jira's global navigation is. */
+  background: var(--sidebar-bg);
+  border-inline-end: 1px solid var(--sidebar-bg);
+  padding: 24px 12px 20px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
+  color: var(--sidebar-text);
 }
 
 .brand {
@@ -136,13 +168,16 @@ a:hover {
   gap: 12px;
   padding-inline: 6px;
 }
-.brand-name {
-  font-family: Rubik, Heebo, sans-serif;
-  font-weight: 700;
-  font-size: 15.5px;
-  line-height: 1.3;
+.brand {
+  padding-block: 4px 22px;
+  border-block-end: 1px solid var(--sidebar-line);
 }
-
+.brand-name {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--sidebar-text);
+}
 .sidebar nav {
   display: flex;
   flex-direction: column;
@@ -151,65 +186,90 @@ a:hover {
 .nav-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  color: var(--ink-soft);
-  font-size: 15px;
+  gap: 11px;
+  padding: 8px 12px;
+  border-radius: 3px;
+  color: var(--sidebar-muted);
+  font-size: 14px;
   font-weight: 500;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.14s,
+    color 0.14s;
 }
 .nav-link:hover {
-  background: var(--bg);
-  color: var(--ink);
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
+}
+.nav-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+  opacity: 0.85;
 }
 .nav-count {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--dim);
+  margin-inline-start: auto;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #94a3b824;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sidebar-muted);
 }
-.nav-link.active {
-  background: var(--navy-tint);
-  color: var(--navy);
+.nav-link.active,
+.nav-link.active:hover {
+  background: var(--sidebar-active);
+  color: var(--sidebar-active-text);
   font-weight: 700;
 }
-.nav-link.active .nav-count {
-  color: var(--navy);
+.nav-link.active .nav-icon {
+  opacity: 1;
 }
-
+.nav-link.active .nav-count {
+  background: rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+}
 .sidebar-foot {
   margin-block-start: auto;
+  padding-block-start: 20px;
+  border-block-start: 1px solid var(--sidebar-line);
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-
 .user-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 6px;
+  padding: 6px 6px 4px;
 }
 .avatar {
   width: 32px;
   height: 32px;
   flex: none;
   border-radius: 50%;
-  background: var(--navy-tint);
-  color: var(--navy);
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--sidebar-text);
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
+
 .user-name {
   font-size: 13.5px;
   line-height: 1.3;
+  font-weight: 600;
+  color: var(--sidebar-text);
 }
 .user-role {
-  color: var(--dim);
+  color: var(--sidebar-dim);
   font-size: 12px;
+  font-weight: 400;
 }
 .user-actions {
   margin-inline-start: auto;
@@ -219,64 +279,32 @@ a:hover {
 }
 .sign-out {
   font-size: 12.5px;
-  color: var(--dim);
+  color: var(--sidebar-dim);
 }
 .sign-out:hover {
-  color: var(--slate);
+  color: var(--sidebar-text);
 }
-
-.gear-btn {
-  width: 32px;
-  height: 32px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
-}
-.gear-btn:hover {
-  border-color: var(--border-hover);
-}
-.gear-btn.active {
-  background: var(--navy-tint);
-  border-color: var(--navy);
-}
-
-/* --------------------------------------------------------------------------
-   Main pane. `isolation: isolate` is required: it makes the negative-z glow
-   overlay paint above this element's own background but behind the cards.
-   -------------------------------------------------------------------------- */
+/* The page container: one column, one gap, full width. Children stretch, so
+   every card, table and filter row shares the page title's two edges. */
 .content {
-  padding: 30px 34px 56px;
+  padding: 24px 32px 48px;
   min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
   position: relative;
   z-index: 0;
   isolation: isolate;
-  /* Finer circuit grid: two hairlines plus a node dot at each cell centre. */
-  background-image: linear-gradient(rgba(41, 60, 143, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(41, 60, 143, 0.05) 1px, transparent 1px),
-    radial-gradient(rgba(41, 60, 143, 0.12) 1.2px, transparent 1.2px);
-  background-size: 48px 48px, 48px 48px, 48px 48px;
-  background-position: -1px -1px, -1px -1px, 23px 23px;
+  background: var(--bg);
 }
 
-/* The same grid at higher contrast, revealed only through a mask that
-   follows the pointer (see usePointerGlow). */
+/* The pointer-tracking grid glow is retired: an enterprise tool does not
+   decorate its canvas. The element and its hook stay exactly where they were,
+   drawing nothing, so no component had to change shape to drop the effect. */
 .content-glow {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.45s ease;
-  background-image: linear-gradient(rgba(41, 60, 143, 0.22) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(41, 60, 143, 0.22) 1px, transparent 1px),
-    radial-gradient(rgba(233, 36, 41, 0.45) 1.6px, transparent 1.6px);
-  background-size: 48px 48px, 48px 48px, 48px 48px;
-  background-position: -1px -1px, -1px -1px, 23px 23px;
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -284,18 +312,19 @@ a:hover {
     display: none;
   }
 }
-
-/* --------------------------------------------------------------- headers */
 .page-header {
   display: flex;
+  width: 100%;
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 24px;
   flex-wrap: wrap;
 }
-.page-header h1 {
-  margin-bottom: 4px;
+.page-header > :first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 .page-header .subtitle {
   color: var(--muted);
@@ -303,32 +332,36 @@ a:hover {
 .header-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
+  flex-wrap: wrap;
 }
-
+.header-note {
+  font-size: 13.5px;
+  color: var(--dim);
+  align-self: center;
+  max-width: 260px;
+  text-align: end;
+}
 .title-row {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-
 .back-link {
-  display: inline-block;
+  align-self: flex-start;
   font-size: 14px;
   color: var(--muted);
-  margin-bottom: 12px;
 }
 .back-link:hover {
   color: var(--navy);
 }
-
 .section-label {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
   margin-bottom: 8px;
 }
-
 .pane-header {
   display: flex;
   align-items: center;
@@ -336,44 +369,65 @@ a:hover {
   gap: 16px;
   margin-bottom: 14px;
 }
-
 /* --------------------------------------------------------------- buttons */
 .btn {
   font: inherit;
-  font-size: 14.5px;
-  font-weight: 600;
-  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  padding: 6px 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 3px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+  transition:
+    background 0.1s ease-out,
+    color 0.1s ease-out;
 }
+
+/* Atlassian rings the control itself rather than offsetting an outline. */
+.btn:focus-visible,
+.tab:focus-visible,
+.chip:focus-visible,
+.segmented button:focus-visible,
+.link-btn:focus-visible,
+.nav-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 .btn-primary {
-  background: var(--navy);
+  background: var(--accent);
   color: #fff;
 }
+
 .btn-primary:hover:not(:disabled) {
-  background: var(--navy-hover);
+  background: var(--accent-hover);
 }
+.btn-primary:active:not(:disabled) {
+  background: var(--accent-pressed);
+}
+/* The Atlassian "default" button: a neutral fill, no border. */
 .btn-secondary {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  color: var(--ink);
-  padding: 10px 15px;
+  background: var(--divider);
+  border: 0;
+  color: var(--slate);
 }
+
 .btn-secondary:hover:not(:disabled) {
-  border-color: var(--border-hover);
+  background: var(--border);
+  color: var(--ink);
 }
+
 .btn-ghost {
   background: transparent;
-  color: var(--muted);
-  padding: 8px 12px;
+  color: var(--slate);
 }
+
 .btn-ghost:hover:not(:disabled) {
   background: var(--divider);
   color: var(--ink);
@@ -385,15 +439,19 @@ a:hover {
   background: var(--red-tint);
   color: var(--red-deep);
 }
+/* The add-an-entry action at the foot of a settings list - the primary
+   action on that card, so it is dressed as one. */
 .btn-dashed {
-  background: var(--surface);
-  border: 1px dashed var(--border-strong);
-  color: var(--navy);
-  font-size: 14px;
-  padding: 9px 15px;
+  background: var(--accent);
+  border: 0;
+  color: #fff;
 }
+
 .btn-dashed:hover:not(:disabled) {
-  border-color: var(--navy);
+  background: var(--accent-hover);
+}
+.btn-dashed:active:not(:disabled) {
+  background: var(--accent-pressed);
 }
 .btn-danger {
   background: var(--red);
@@ -402,18 +460,18 @@ a:hover {
 .btn-danger:hover:not(:disabled) {
   background: var(--red-deep);
 }
-
-/* Text actions inside table rows and list rows. */
 .link-btn {
   font: inherit;
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 400;
   color: var(--navy);
   background: none;
   border: 0;
+  border-radius: 3px;
   padding: 0;
   cursor: pointer;
 }
+
 .link-btn:hover:not(:disabled) {
   color: var(--navy-hover);
 }
@@ -431,7 +489,6 @@ a:hover {
   display: flex;
   gap: 12px;
 }
-
 .icon-btn {
   background: none;
   border: 0;
@@ -444,35 +501,19 @@ a:hover {
 .icon-btn:hover {
   color: var(--ink);
 }
-
-/* Two-state pill switch, e.g. פעילים / בארכיון. */
-.segmented {
-  display: flex;
-  background: #eaedf2;
-  padding: 3px;
-  border-radius: 8px;
-}
-.segmented button {
-  font: inherit;
-  font-size: 14px;
-  padding: 7px 14px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-}
-.segmented button.on {
-  background: var(--surface);
-  color: var(--ink);
-  font-weight: 600;
-}
-
-/* ----------------------------------------------------------------- cards */
-.card {
+/* ----------------------------------------------------------------- cards
+   Every container is drawn the way Jira draws an issue: flat white, one
+   hairline rule, 3px corners. No elevation - depth is not how this design
+   language separates things. */
+.card,
+.table-card,
+.list-card,
+.panel,
+.rail-card,
+.stat-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
 }
 
 .project-grid {
@@ -480,18 +521,22 @@ a:hover {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
 }
-
 .project-card {
   display: block;
-  padding: 18px 20px 14px;
+  padding: 14px 16px 12px;
   color: inherit;
-  transition: border-color 0.12s, box-shadow 0.12s;
+  transition:
+    background 0.1s ease-out,
+    border-color 0.1s ease-out;
 }
+
+/* Jira answers hover with a fill, not with lift. */
 .project-card:hover {
   color: inherit;
-  border-color: #c3cad6;
-  box-shadow: var(--shadow-card);
+  background: var(--surface-alt);
+  border-color: var(--border-strong);
 }
+
 .project-card-top {
   display: flex;
   align-items: flex-start;
@@ -520,19 +565,19 @@ a:hover {
   font-size: 12px;
   color: var(--dim);
 }
-
-/* Three equal cards above the project-detail tabs. */
 .stat-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 26px;
+  width: 100%;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 768px) {
+  .stat-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
+  padding: 15px 17px;
 }
 .stat-card .label {
   font-size: 12.5px;
@@ -543,17 +588,22 @@ a:hover {
   font-size: 23px;
   font-weight: 700;
 }
-
-/* ----------------------------------------------------------------- pills */
+/* ----------------------------------------------------------------- pills
+   The Jira status lozenge: small, bold, tracked out, on its own pale ground.
+   `uppercase` is a no-op for Hebrew and does its job on Latin codes. */
 .pill {
   display: inline-block;
   flex: none;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   white-space: nowrap;
 }
+
 .pill-green {
   background: var(--green-bg);
   color: var(--green);
@@ -574,111 +624,138 @@ a:hover {
   background: var(--divider);
   color: var(--muted);
 }
-/* Neutral chip used for the item name on a feedback card. */
+/* The item name on a feedback card labels rather than states, so it keeps
+   sentence case and drops the tracking. */
 .pill-item {
   background: var(--divider);
   color: var(--slate);
-  font-weight: 400;
-  padding: 2px 8px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-/* ------------------------------------------------------------------ tabs */
-.tabs {
+.tabs,
+.chip-row,
+.segmented {
   display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 20px;
+  width: 100%;
+  justify-content: flex-start;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  border-bottom: 1px solid var(--border);
 }
-.tab {
+.tab,
+.chip,
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  padding: 11px 16px;
+  line-height: 1.45;
+  padding: 8px 10px 10px;
+  margin-bottom: -1px;
   border: 0;
   border-bottom: 2px solid transparent;
-  background: transparent;
+  border-radius: 3px 3px 0 0;
+  background: none;
   color: var(--muted);
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    color 0.14s,
+    border-color 0.14s,
+    background 0.14s;
 }
-.tab:hover {
-  color: var(--ink-soft);
+.tab:hover,
+.chip:hover,
+.segmented button:hover {
+  color: var(--ink);
+  background: #0f172a09;
 }
-.tab.on {
-  color: var(--navy);
-  font-weight: 700;
-  border-bottom-color: var(--navy);
-}
-.tab-count {
-  color: var(--dim);
-  font-weight: 500;
+/* Jira colours the chosen tab as well as underlining it. */
+.tab.on,
+.tab.on:hover,
+.chip.on,
+.chip.on:hover,
+.segmented button.on,
+.segmented button.on:hover {
+  color: var(--accent);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+  background: none;
 }
 
-/* ----------------------------------------------------------------- chips */
-.chip-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  align-items: center;
+.tab-count {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--divider);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
 }
+
+.tab.on .tab-count {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .chip-row-label {
+  padding: 8px 2px 10px;
+  margin-inline-end: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--muted);
-  margin-inline-end: 2px;
+  color: var(--dim);
+  white-space: nowrap;
 }
-.chip {
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 600;
-  padding: 7px 13px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--slate);
-  cursor: pointer;
-  transition: border-color 0.12s, background 0.12s, color 0.12s;
+.filter-row {
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.chip:hover {
-  border-color: var(--border-hover);
+.filter-row > .segmented {
+  flex: 1 1 100%;
 }
-.chip.on,
-.chip.on:hover {
-  background: var(--navy);
-  border-color: var(--navy);
-  color: #fff;
-}
-
-/* ---------------------------------------------------------------- tables */
 .table-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
   overflow: hidden;
 }
-/* Wide tables scroll inside the card rather than pushing the page sideways. */
 .table-scroll {
   overflow-x: auto;
 }
-
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14.5px;
+  font-size: 14px;
 }
+/* ---------------------------------------------------------------- tables */
 thead th {
   text-align: start;
-  padding: 11px 18px;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--muted);
-  background: var(--surface-alt);
-  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
   white-space: nowrap;
 }
+
 tbody td {
-  padding: var(--cell-pad) 18px;
+  padding: var(--cell-pad) 12px;
   border-bottom: 1px solid var(--divider);
   vertical-align: middle;
 }
@@ -696,7 +773,6 @@ td.meta {
   color: var(--dim);
   font-size: 13.5px;
 }
-
 tr.selectable {
   cursor: pointer;
 }
@@ -707,9 +783,6 @@ tr.row-selected,
 tr.row-selected:hover {
   background: var(--row-selected);
 }
-
-/* Collapsible brigade group header — a table row (colSpan) in the
-   directory, a plain row in the Settings list; same look either way. */
 .group-toggle {
   display: flex;
   align-items: center;
@@ -749,35 +822,67 @@ tr.group-row .group-toggle {
 .list-card .group-toggle {
   border-bottom: 1px solid var(--divider);
 }
-
-/* --------------------------------------------------------- split layouts */
+.group-head {
+  display: flex;
+  align-items: center;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--divider);
+}
+.list-card .group-head .group-toggle {
+  border-bottom: 0;
+}
+.group-head .row-actions {
+  flex: none;
+  padding-inline-end: 18px;
+}
+.list-row-nested {
+  padding-inline-start: 42px;
+}
+.group-empty,
+.group-foot {
+  padding: 12px 18px;
+  padding-inline-start: 42px;
+  border-bottom: 1px solid var(--divider);
+}
+.group-empty {
+  font-size: 13.5px;
+  color: var(--dim);
+}
 .split {
-  display: grid;
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
   gap: 20px;
-  align-items: start;
+  flex-wrap: wrap;
 }
-.split-locations {
-  grid-template-columns: minmax(0, 1fr) 340px;
+.split > :first-child {
+  flex: 1 1 420px;
+  min-width: 0;
 }
-.split-feedback {
-  grid-template-columns: minmax(0, 1fr) 300px;
+.split-locations > .panel {
+  flex: 0 0 340px;
 }
-.split-settings {
-  grid-template-columns: minmax(0, 460px) 300px;
+.split-feedback > .rail {
+  flex: 0 0 300px;
 }
-
+.split-settings > .note-card {
+  flex: 0 0 300px;
+}
 .panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  width: 100%;
   padding: 20px;
   position: sticky;
-  top: 30px;
+  top: 28px;
 }
 .panel-title {
-  font-family: Rubik, Heebo, sans-serif;
   font-size: 20px;
   font-weight: 700;
+}
+.panel-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 .panel-sub {
   color: var(--muted);
@@ -792,7 +897,7 @@ tr.group-row .group-toggle {
 }
 .panel-stat {
   background: var(--bg);
-  border-radius: 9px;
+  border-radius: 3px;
   padding: 11px 13px;
 }
 .panel-stat .label {
@@ -833,8 +938,6 @@ tr.group-row .group-toggle {
   font-size: 12.5px;
   margin-top: 5px;
 }
-
-/* -------------------------------------------------------------- feedback */
 .feedback-list {
   display: flex;
   flex-direction: column;
@@ -846,7 +949,6 @@ tr.group-row .group-toggle {
 .feedback-card {
   padding: 16px 18px;
 }
-/* In RTL the inline-start edge is the right-hand one — the leading edge. */
 .feedback-card.edged {
   border-inline-start: 3px solid var(--edge, var(--dim));
 }
@@ -867,7 +969,7 @@ tr.group-row .group-toggle {
   font-size: 14px;
 }
 .feedback-sep {
-  color: #c3cad6;
+  color: var(--border-strong);
 }
 .feedback-body {
   margin: 0;
@@ -879,26 +981,21 @@ tr.group-row .group-toggle {
 .feedback-card .row-actions {
   margin-top: 10px;
 }
-
 .stars {
   color: var(--star);
   font-size: 14px;
   letter-spacing: 1px;
   white-space: nowrap;
 }
-
-/* ------------------------------------------------------------------ rail */
 .rail {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 12px;
   position: sticky;
-  top: 30px;
+  top: 28px;
 }
 .rail-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
   padding: 18px;
 }
 .bars {
@@ -924,13 +1021,16 @@ tr.group-row .group-toggle {
   background: var(--navy);
 }
 .rail-card.dark {
-  background: var(--ink);
-  border-color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--sidebar-bg);
+  border-color: var(--sidebar-bg);
   color: #fff;
 }
 .rail-card.dark .label {
   font-size: 12.5px;
-  color: #8892a8;
+  color: var(--sidebar-muted);
   margin-bottom: 6px;
 }
 .rail-card.dark .value {
@@ -940,15 +1040,10 @@ tr.group-row .group-toggle {
 }
 .rail-card.dark .sub {
   font-size: 13.5px;
-  color: #8892a8;
+  color: var(--sidebar-muted);
   margin-top: 6px;
 }
-
-/* -------------------------------------------------------------- settings */
 .list-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
   overflow: hidden;
 }
 .list-card-head {
@@ -956,10 +1051,12 @@ tr.group-row .group-toggle {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 14px;
 }
+
 .list-card-head .count {
   color: var(--dim);
   font-size: 13px;
@@ -983,17 +1080,19 @@ tr.group-row .group-toggle {
 .list-card-foot {
   padding: 14px 18px;
 }
+/* An information panel: white like every other container, marked by the
+   accent edge Confluence uses rather than by a tinted fill. */
 .note-card {
-  background: var(--navy-tint);
-  border: 1px solid var(--navy-tint-border);
-  border-radius: 12px;
-  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.6;
   color: var(--ink-soft);
 }
 
-/* ----------------------------------------------------------------- login */
 .login {
   min-height: 100vh;
   display: flex;
@@ -1031,12 +1130,13 @@ tr.group-row .group-toggle {
   color: var(--dim);
   line-height: 1.6;
 }
-
-/* ----------------------------------------------------------------- modal */
 .modal-backdrop {
   position: fixed;
-  inset: 0;
-  background: rgba(16, 24, 43, 0.5);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: #0f172a99;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -1044,7 +1144,7 @@ tr.group-row .group-toggle {
 }
 .modal {
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: 3px;
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
@@ -1066,22 +1166,18 @@ tr.group-row .group-toggle {
   background: var(--surface);
   z-index: 1;
 }
-
-/* ----------------------------------------------------------------- forms */
 .form-body {
   padding: 20px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
-/* Single-column forms (settings lists) keep the same padding. */
 .form-body.single {
   grid-template-columns: 1fr;
 }
 .span-2 {
   grid-column: 1 / -1;
 }
-
 .field {
   display: block;
 }
@@ -1092,35 +1188,47 @@ tr.group-row .group-toggle {
   color: var(--slate);
   margin-bottom: 6px;
 }
+.form-section {
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--slate);
+}
 .req {
   color: var(--red);
   font-style: normal;
 }
-
+/* Jira fields sit on N10 at rest and go white when focused. */
 input,
 select,
 textarea {
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--surface);
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-alt);
   color: var(--ink);
-  transition: border-color 0.12s, box-shadow 0.12s;
+  transition:
+    background 0.1s ease-out,
+    border-color 0.1s ease-out;
 }
+
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--navy);
-  box-shadow: 0 0 0 3px rgba(41, 60, 143, 0.14);
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: none;
 }
+
 textarea {
   resize: vertical;
 }
-
 .form-actions {
   display: flex;
   justify-content: flex-start;
@@ -1133,13 +1241,11 @@ textarea {
   font-size: 15px;
   padding: 10px 18px;
 }
-
-/* ---------------------------------------------------------------- states */
 .empty-state {
   background: var(--surface);
-  border: 1px dashed var(--border-strong);
-  border-radius: 12px;
-  padding: 36px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 32px 24px;
   text-align: center;
   color: var(--muted);
 }
@@ -1150,39 +1256,43 @@ textarea {
   gap: 12px;
   background: var(--red-tint);
   color: var(--red-deep);
-  border: 1px solid var(--red-tint-border);
-  border-radius: 10px;
-  padding: 11px 16px;
-  margin-bottom: 16px;
+  border: 0;
+  border-radius: 3px;
+  padding: 12px 16px;
   font-size: 14px;
 }
+
 .error-banner .link-btn {
   color: var(--red-deep);
 }
 .error-banner .link-btn:first-of-type {
   margin-inline-start: auto;
 }
-
-/* ------------------------------------------------------------ responsive */
 @media (max-width: 1100px) {
-  .split-locations,
-  .split-feedback,
-  .split-settings {
-    grid-template-columns: minmax(0, 1fr);
+  .split > *,
+  .split-locations > .panel,
+  .split-feedback > .rail,
+  .split-settings > .note-card {
+    flex: 1 1 100%;
   }
   .panel,
   .rail {
     position: static;
   }
+  .rail {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    align-items: stretch;
+  }
 }
-
 @media (max-width: 820px) {
   .app {
     grid-template-columns: 1fr;
   }
   .sidebar {
+    background: var(--sidebar-bg);
     border-inline-end: none;
-    border-block-end: 1px solid var(--border);
+    border-block-end: 1px solid rgba(15, 23, 42, 0.7);
     flex-direction: row;
     align-items: center;
     gap: 16px;
@@ -1192,6 +1302,14 @@ textarea {
   .sidebar nav {
     flex-direction: row;
   }
+  .brand {
+    padding-block-end: 0;
+    border-block-end: 0;
+  }
+  .sidebar-foot {
+    padding-block-start: 0;
+    border-block-start: 0;
+  }
   .sidebar-foot {
     margin-block-start: 0;
     margin-inline-start: auto;
@@ -1200,6 +1318,10 @@ textarea {
   }
   .content {
     padding: 20px 16px 40px;
+    gap: 18px;
+  }
+  .header-note {
+    max-width: none;
   }
   .stat-strip {
     grid-template-columns: 1fr 1fr;
@@ -1211,26 +1333,16 @@ textarea {
     padding: 32px 20px;
   }
 }
-
-/* --------------------------------------------------------------------------
-   Small placements that only make sense once the components are assembled.
-   -------------------------------------------------------------------------- */
-
-/* The login mark is centred above the heading. */
 .login-box > svg {
   display: block;
   margin: 0 auto 28px;
 }
-
-/* An empty list inside a card keeps the card's own frame. */
 .list-card .empty-state {
   border: 0;
   border-radius: 0;
   border-bottom: 1px solid var(--divider);
   padding: 28px 18px;
 }
-
-/* The drill-down panel's one action spans it. */
 .panel > .btn {
   width: 100%;
 }

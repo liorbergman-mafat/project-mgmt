@@ -14,6 +14,15 @@ ITEM_SELECT = (
     "status:item_statuses(*), location:locations(*)"
 )
 
+# The "add equipment" form asks for category, serial, project and optionally
+# a model, but items.status_id / items.location_id are not null. New
+# equipment has not been loaned anywhere yet, so it starts off in the
+# warehouse: these two rows are looked up by name and created on first use,
+# then reused from then on.
+DEFAULT_STATUS_NAME = "במחסן"
+DEFAULT_LOCATION_NAME = "מחסן"
+DEFAULT_LOCATION_KIND = "מחסן"
+
 router = APIRouter(prefix="/api/items", tags=["items"])
 
 
@@ -41,8 +50,11 @@ def list_items(
 
 @router.post("", response_model=Item, status_code=201)
 def create_item(body: ItemCreate) -> Item:
+    data = payload(body, partial=True)
+    data.setdefault("status_id", _default_status_id())
+    data.setdefault("location_id", _default_location_id())
     created = first_or_404(
-        table("items").insert(payload(body, partial=True)).execute(),
+        table("items").insert(data).execute(),
         "Item was not created",
     )
     return _fetch(created["id"])
@@ -56,6 +68,11 @@ def get_item(item_id: UUID) -> Item:
 @router.patch("/{item_id}", response_model=Item)
 def update_item(item_id: UUID, body: ItemUpdate) -> Item:
     data = payload(body, partial=True)
+    # payload()'s partial mode drops None fields entirely, which is right for
+    # "untouched" fields but would silently ignore clearing model_id back to
+    # "no model" — put it back if the caller actually sent it.
+    if "model_id" in body.model_fields_set and body.model_id is None:
+        data["model_id"] = None
     require_non_empty(data)
     first_or_404(
         table("items").update(data).eq("id", str(item_id)).execute(),
@@ -72,6 +89,29 @@ def delete_item(item_id: UUID) -> None:
         "Item not found",
     )
     table("items").delete().eq("id", str(item_id)).execute()
+
+
+def _default_status_id() -> str:
+    return _id_by_name("item_statuses", {"name": DEFAULT_STATUS_NAME})
+
+
+def _default_location_id() -> str:
+    return _id_by_name(
+        "locations",
+        {"name": DEFAULT_LOCATION_NAME, "kind": DEFAULT_LOCATION_KIND},
+    )
+
+
+def _id_by_name(table_name: str, row: dict[str, str]) -> str:
+    """The id of the row with this name, inserting it the first time around."""
+    found = rows(table(table_name).select("id").eq("name", row["name"]).limit(1).execute())
+    if found:
+        return found[0]["id"]
+    created = first_or_404(
+        table(table_name).insert(row).execute(),
+        f"Could not create the default {table_name} row",
+    )
+    return created["id"]
 
 
 def _fetch(item_id: str) -> Item:

@@ -12,6 +12,8 @@ import {
   toLocalInputValue,
 } from "../i18n";
 import { useShell } from "../shellData";
+import { ContactFormModal } from "../components/ContactFormModal";
+import { ItemFormModal } from "../components/ItemFormModal";
 import {
   ConfirmModal,
   EmptyState,
@@ -25,16 +27,7 @@ import {
   Tabs,
 } from "../components/ui";
 import type { Tone } from "../components/ui";
-import type {
-  Feedback,
-  Item,
-  ItemModel,
-  ItemStatus,
-  ItemType,
-  Loan,
-  Location,
-  ProjectStatus,
-} from "../types";
+import type { Contact, Feedback, Item, Loan, Location, ProjectStatus } from "../types";
 
 const PROJECT_TONE: Record<ProjectStatus, Tone> = {
   active: "green",
@@ -63,10 +56,6 @@ export default function ProjectDetailPage() {
   const navigate = useNavigate();
 
   const detail = useAsync(() => api.projects.detail(id), [id]);
-  // Lookup lists for the "new item" / "new loan" / "new feedback" dropdowns.
-  const types = useAsync(() => api.itemTypes.list(), []);
-  const models = useAsync(() => api.itemModels.list(), []);
-  const statuses = useAsync(() => api.itemStatuses.list(), []);
 
   const [tab, setTab] = useState<Tab>("items");
   const [editingItem, setEditingItem] = useState<Item | null>(null);
@@ -192,12 +181,8 @@ export default function ProjectDetailPage() {
 
       {(addingItem || editingItem) && (
         <ItemFormModal
-          projectId={id}
           item={editingItem}
-          types={types.data ?? []}
-          models={models.data ?? []}
-          statuses={statuses.data ?? []}
-          locations={locations}
+          defaultProjectId={id}
           onClose={() => {
             setAddingItem(false);
             setEditingItem(null);
@@ -214,6 +199,7 @@ export default function ProjectDetailPage() {
         <NewLoanModal
           projectId={id}
           items={items}
+          loans={loans}
           locations={locations}
           onClose={() => setAddingLoan(false)}
           onCreated={() => {
@@ -373,6 +359,7 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
                 <th>{t.loans.location}</th>
                 <th>{t.loans.quantity}</th>
                 <th>{t.loans.loanedAt}</th>
+                <th>{t.loans.signer}</th>
                 <th>{t.loans.status}</th>
                 <th />
               </tr>
@@ -396,6 +383,11 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
                         {t.loans.returnedAt}: {formatDate(loan.returned_at)}
                       </div>
                     )}
+                  </td>
+                  <td>
+                    {loan.signer?.full_name ?? t.common.none}
+                    {loan.signer?.role && <span className="dim small"> · {loan.signer.role}</span>}
+                    {loan.signer?.phone && <div className="dim small num">{loan.signer.phone}</div>}
                   </td>
                   <td>
                     <LoanStatusPill loan={loan} />
@@ -486,165 +478,56 @@ function FeedbackCard({ entry, onChanged }: { entry: Feedback; onChanged: () => 
 /* ========================================================================
  * Modals
  * ===================================================================== */
-function ItemFormModal({
-  projectId,
-  item,
-  types,
-  models,
-  statuses,
-  locations,
-  onClose,
-  onSaved,
-}: {
-  projectId: string;
-  item: Item | null;
-  types: ItemType[];
-  models: ItemModel[];
-  statuses: ItemStatus[];
-  locations: Location[];
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [typeId, setTypeId] = useState(item?.type_id ?? "");
-  const [modelId, setModelId] = useState(item?.model_id ?? "");
-  const [serialId, setSerialId] = useState(item?.serial_id ?? "");
-  const [statusId, setStatusId] = useState(item?.status_id ?? "");
-  const [locationId, setLocationId] = useState(item?.location_id ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const listsEmpty = types.length === 0 || statuses.length === 0 || locations.length === 0;
-  const modelsForType = models.filter((m) => m.type_id === typeId);
-
-  function onTypeChange(value: string) {
-    setTypeId(value);
-    setModelId("");
-  }
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      const body = {
-        project_id: projectId,
-        type_id: typeId,
-        model_id: modelId,
-        serial_id: serialId.trim() || null,
-        status_id: statusId,
-        location_id: locationId,
-      };
-      if (item) await api.items.update(item.id, body);
-      else await api.items.create(body);
-      onSaved();
-    } catch (err) {
-      setError((err as Error).message);
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal title={item ? t.projectItems.edit : t.projectItems.new} onClose={onClose}>
-      <form onSubmit={submit}>
-        <div className="form-body">
-          {listsEmpty && (
-            <div className="span-2">
-              <ErrorBanner error={t.projectItems.listsEmpty} />
-            </div>
-          )}
-
-          <Field label={t.projectItems.type} required>
-            <select value={typeId} onChange={(e) => onTypeChange(e.target.value)} required autoFocus>
-              <option value="">{t.common.none}</option>
-              {types.map((ty) => (
-                <option key={ty.id} value={ty.id}>
-                  {ty.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label={t.projectItems.model} required>
-            <select
-              value={modelId}
-              onChange={(e) => setModelId(e.target.value)}
-              required
-              disabled={!typeId}
-            >
-              <option value="">{typeId ? t.common.none : t.projectItems.selectTypeFirst}</option>
-              {modelsForType.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label={t.projectItems.serialId} span>
-            <input value={serialId} onChange={(e) => setSerialId(e.target.value)} />
-          </Field>
-
-          <Field label={t.projectItems.status} required>
-            <select value={statusId} onChange={(e) => setStatusId(e.target.value)} required>
-              <option value="">{t.common.none}</option>
-              {statuses.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label={t.projectItems.location} required>
-            <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
-              <option value="">{t.common.none}</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {locationLabel(loc)}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          {error && (
-            <div className="span-2">
-              <ErrorBanner error={error} />
-            </div>
-          )}
-        </div>
-
-        <FormActions
-          saving={saving}
-          disabled={!typeId || !modelId || !statusId || !locationId}
-          onCancel={onClose}
-        />
-      </form>
-    </Modal>
-  );
-}
-
 function NewLoanModal({
   projectId,
   items,
+  loans,
   locations,
   onClose,
   onCreated,
 }: {
   projectId: string;
   items: Item[];
+  loans: Loan[];
   locations: Location[];
   onClose: () => void;
   onCreated: () => void;
 }) {
+  // An item already out on an open loan can't be loaned again until it's
+  // returned (or that loan deleted) — see backend/app/routers/loans.py.
+  const loanableItems = items.filter(
+    (item) => !loans.some((loan) => loan.item_id === item.id && loan.status === "loaned"),
+  );
+
   const [itemId, setItemId] = useState("");
   const [locationId, setLocationId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [loanedAt, setLoanedAt] = useState(toLocalInputValue(new Date()));
   const [notes, setNotes] = useState("");
+  const [signerContactId, setSignerContactId] = useState("");
+  const [addingContact, setAddingContact] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const invalid = !itemId || !locationId || quantity < 1;
+  // The signer is one of the destination unit's contacts, so the list (and
+  // the current pick) resets whenever the chosen location changes.
+  const contacts = useAsync(
+    () => (locationId ? api.contacts.list(locationId) : Promise.resolve([])),
+    [locationId],
+  );
+
+  function onLocationChange(value: string) {
+    setLocationId(value);
+    setSignerContactId("");
+  }
+
+  function onContactAdded(contact: Contact) {
+    setAddingContact(false);
+    setSignerContactId(contact.id);
+    contacts.reload();
+  }
+
+  const invalid = !itemId || !locationId || quantity < 1 || !signerContactId;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -658,6 +541,7 @@ function NewLoanModal({
         quantity,
         loaned_at: new Date(loanedAt).toISOString(),
         notes: notes.trim() || null,
+        signer_contact_id: signerContactId,
       });
       onCreated();
     } catch (err) {
@@ -670,10 +554,16 @@ function NewLoanModal({
     <Modal title={t.loans.new} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="form-body">
-          {(items.length === 0 || locations.length === 0) && (
+          {(loanableItems.length === 0 || locations.length === 0) && (
             <div className="span-2">
               <ErrorBanner
-                error={items.length === 0 ? t.loans.noItems : t.loans.noLocations}
+                error={
+                  items.length === 0
+                    ? t.loans.noItems
+                    : loanableItems.length === 0
+                      ? t.loans.allLoaned
+                      : t.loans.noLocations
+                }
               />
             </div>
           )}
@@ -681,7 +571,7 @@ function NewLoanModal({
           <Field label={t.loans.item} required span>
             <select value={itemId} onChange={(e) => setItemId(e.target.value)} required autoFocus>
               <option value="">{t.common.none}</option>
-              {items.map((item) => (
+              {loanableItems.map((item) => (
                 <option key={item.id} value={item.id}>
                   {itemLabel(item)}
                   {item.serial_id ? ` · ${item.serial_id}` : ""}
@@ -691,7 +581,11 @@ function NewLoanModal({
           </Field>
 
           <Field label={t.loans.location} required>
-            <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
+            <select
+              value={locationId}
+              onChange={(e) => onLocationChange(e.target.value)}
+              required
+            >
               <option value="">{t.common.none}</option>
               {locations.map((loc) => (
                 <option key={loc.id} value={loc.id}>
@@ -724,6 +618,43 @@ function NewLoanModal({
             <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
 
+          <div className="span-2 form-section">{t.loans.signer}</div>
+
+          <Field label={t.loans.signer} required span>
+            {locationId ? (
+              <>
+                <select
+                  value={signerContactId}
+                  onChange={(e) => setSignerContactId(e.target.value)}
+                  required
+                  disabled={contacts.loading}
+                >
+                  <option value="">{t.loans.chooseSigner}</option>
+                  {(contacts.data ?? []).map((contact) => (
+                    <option key={contact.id} value={contact.id}>
+                      {contact.full_name}
+                      {contact.role ? ` · ${contact.role}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {contacts.data && contacts.data.length === 0 && (
+                  <p className="muted small">{t.loans.noContactsForLocation}</p>
+                )}
+                <div className="row-actions" style={{ marginTop: 6 }}>
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => setAddingContact(true)}
+                  >
+                    + {t.loans.addContact}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="muted small">{t.loans.selectLocationFirst}</p>
+            )}
+          </Field>
+
           {error && (
             <div className="span-2">
               <ErrorBanner error={error} />
@@ -733,6 +664,14 @@ function NewLoanModal({
 
         <FormActions saving={saving} disabled={invalid} onCancel={onClose} />
       </form>
+
+      {addingContact && locationId && (
+        <ContactFormModal
+          locationId={locationId}
+          onClose={() => setAddingContact(false)}
+          onSaved={onContactAdded}
+        />
+      )}
     </Modal>
   );
 }

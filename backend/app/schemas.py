@@ -70,16 +70,11 @@ class ItemModel(ItemModelCreate):
     created_at: datetime
 
 
-class ItemStatusCreate(BaseModel):
-    name: str
+class ItemStatus(BaseModel):
+    """Read-only: statuses are a fixed, seeded list — see routers/item_statuses.py."""
 
-
-class ItemStatusUpdate(BaseModel):
-    name: Optional[str] = None
-
-
-class ItemStatus(ItemStatusCreate):
     id: UUID
+    name: str
     created_at: datetime
 
 
@@ -115,15 +110,48 @@ class Location(LocationCreate):
 
 
 # --------------------------------------------------------------------------
+# Contacts — named people at a location who can sign for a loan.
+# --------------------------------------------------------------------------
+class ContactCreate(BaseModel):
+    location_id: UUID
+    full_name: str
+    personal_number: str
+    phone: str
+    role: Optional[str] = None
+
+
+class ContactUpdate(BaseModel):
+    full_name: Optional[str] = None
+    personal_number: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+
+
+class Contact(ContactCreate):
+    id: UUID
+    created_at: datetime
+
+
+# --------------------------------------------------------------------------
 # Items — one row per physical item, owned by exactly one project.
 # --------------------------------------------------------------------------
 class ItemCreate(BaseModel):
-    project_id: UUID
-    type_id: UUID
-    model_id: UUID
+    """
+    What the "add equipment" form asks for: what the item is (its category,
+    optionally a model, and a serial) and which project owns it. The model is
+    optional — equipment can be linked straight to a category with no model.
+
+    Status and location are columns on the item but not questions on the
+    form — omitting them starts the item off in the warehouse (see
+    routers/items.py). Both are editable afterwards.
+    """
+
+    project_id: Optional[UUID] = None
+    type_id: Optional[UUID] = None
+    model_id: Optional[UUID] = None
     serial_id: Optional[str] = None
-    status_id: UUID
-    location_id: UUID
+    status_id: Optional[UUID] = None
+    location_id: Optional[UUID] = None
 
 
 class ItemUpdate(BaseModel):
@@ -138,7 +166,7 @@ class Item(BaseModel):
     id: UUID
     project_id: UUID
     type_id: UUID
-    model_id: UUID
+    model_id: Optional[UUID] = None
     serial_id: Optional[str] = None
     status_id: UUID
     location_id: UUID
@@ -164,6 +192,8 @@ class LoanCreate(BaseModel):
     loaned_at: Optional[datetime] = None
     returned_at: Optional[datetime] = None
     notes: Optional[str] = None
+    # The contact at the receiving unit signing for the loaned item.
+    signer_contact_id: UUID
 
 
 class LoanUpdate(BaseModel):
@@ -174,6 +204,7 @@ class LoanUpdate(BaseModel):
     loaned_at: Optional[datetime] = None
     returned_at: Optional[datetime] = None
     notes: Optional[str] = None
+    signer_contact_id: Optional[UUID] = None
 
 
 class Loan(BaseModel):
@@ -186,12 +217,14 @@ class Loan(BaseModel):
     loaned_at: datetime
     returned_at: Optional[datetime] = None
     notes: Optional[str] = None
+    signer_contact_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
 
     # Populated by PostgREST's embedded select.
     item: Optional[Item] = None
     location: Optional[Location] = None
+    signer: Optional[Contact] = None
 
 
 # --------------------------------------------------------------------------

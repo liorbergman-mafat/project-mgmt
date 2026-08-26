@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAsync } from "../hooks";
 import { formatRelative, itemLabel, t } from "../i18n";
@@ -18,10 +18,6 @@ import {
 } from "../components/ui";
 import type { Item, Location, ProjectSummary } from "../types";
 
-/**
- * Same defaults and fallback behaviour as the Settings locations tab, so the
- * two screens filter identically — see SettingsPage.tsx's LocationsPanel.
- */
 const DEFAULT_KIND = "יחידה";
 const DEFAULT_CATEGORY = "סדיר קחצ״ר";
 
@@ -33,7 +29,7 @@ export function LocationsPage() {
   const { data, error, loading, reload } = shell.locations;
 
   // The numbers beside each location are folded together here — see locationStats.
-  const items = useAsync(() => api.items.list(), []);
+  const items = shell.items;
   const loans = useAsync(() => api.loans.list(), []);
   const stats = useMemo(
     () => buildLocationStats(items.data ?? [], loans.data ?? [], shell.feedback.data ?? []),
@@ -95,11 +91,35 @@ export function LocationsPage() {
     [groups, open],
   );
   const selected = expandedRows.find((row) => row.id === selectedId) ?? null;
-  const [creating, setCreating] = useState(false);
 
   // Switching kind can leave the current category with no rows under it —
   // `activeCategory` above then falls back to that kind's first category.
   const selectKind = setKind;
+
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<Location | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  function afterSaved(saved: Location) {
+    setCreating(false);
+    setEditing(null);
+    // Jump straight to the saved row's brigade group, so it's visible right away.
+    setOpen((prev) => new Set(prev).add(`${saved.category ?? ""} ${saved.brigade ?? ""}`));
+    setSelectedId(saved.id);
+    reload();
+  }
+
+  async function remove(location: Location) {
+    if (!confirm(t.common.confirmDelete)) return;
+    setActionError(null);
+    try {
+      await api.locations.remove(location.id);
+      setSelectedId(null);
+      reload();
+    } catch (err) {
+      setActionError((err as Error).message);
+    }
+  }
 
   return (
     <>
@@ -114,10 +134,11 @@ export function LocationsPage() {
       </header>
 
       {error && <ErrorBanner error={error} onRetry={reload} />}
+      {actionError && <ErrorBanner error={actionError} />}
       {items.error && <ErrorBanner error={items.error} onRetry={items.reload} />}
       {loans.error && <ErrorBanner error={loans.error} onRetry={loans.reload} />}
       {loading && <Spinner />}
-      {data && all.length === 0 && <EmptyState message={t.locations.empty} />}
+      {data && all.length === 0 && <EmptyState message={t.locations.emptyDirectory} />}
 
       {all.length > 0 && (
         <>
@@ -200,21 +221,25 @@ export function LocationsPage() {
             </div>
           </div>
 
-          {selected && <LocationPanel location={selected} stats={stats.get(selected.id)} />}
+          {selected && (
+            <LocationPanel
+              location={selected}
+              stats={stats.get(selected.id)}
+              onEdit={() => setEditing(selected)}
+              onDelete={() => remove(selected)}
+            />
+          )}
         </div>
       )}
 
-      {creating && (
+      {(creating || editing) && (
         <LocationFormModal
-          location={null}
-          onClose={() => setCreating(false)}
-          onSaved={(saved) => {
+          location={editing}
+          onClose={() => {
             setCreating(false);
-            setSelectedId(saved.id);
-            // Jump straight to the new row, wherever its brigade group is.
-            setOpen((prev) => new Set(prev).add(`${saved.category ?? ""} ${saved.brigade ?? ""}`));
-            reload();
+            setEditing(null);
           }}
+          onSaved={afterSaved}
         />
       )}
     </>
@@ -224,16 +249,30 @@ export function LocationsPage() {
 function LocationPanel({
   location,
   stats,
+  onEdit,
+  onDelete,
 }: {
   location: Location;
   stats: LocationStats | undefined;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const stat = stats ?? emptyStats();
   const sub = [location.kind, affiliation(location)].filter(Boolean).join(" · ");
 
   return (
     <aside className="panel">
-      <div className="panel-title">{location.name}</div>
+      <div className="panel-title-row">
+        <div className="panel-title">{location.name}</div>
+        <div className="row-actions">
+          <button type="button" className="link-btn" onClick={onEdit}>
+            {t.common.edit}
+          </button>
+          <button type="button" className="link-btn danger" onClick={onDelete}>
+            {t.common.delete}
+          </button>
+        </div>
+      </div>
       <div className="panel-sub">{sub || t.common.none}</div>
 
       <div className="panel-stats">
@@ -322,9 +361,24 @@ export function LocationDetailPage() {
   const { locationId } = useParams<{ locationId: string }>();
   const id = locationId!;
   const shell = useShell();
+  const navigate = useNavigate();
 
   const location = useAsync(() => api.locations.get(id), [id]);
   const items = useAsync(() => api.items.list({ locationId: id }), [id]);
+  const [editing, setEditing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function remove() {
+    if (!confirm(t.common.confirmDelete)) return;
+    setActionError(null);
+    try {
+      await api.locations.remove(id);
+      shell.locations.reload();
+      navigate("/locations");
+    } catch (err) {
+      setActionError((err as Error).message);
+    }
+  }
 
   if (location.loading || items.loading) return <Spinner />;
   if (location.error) return <ErrorBanner error={location.error} onRetry={location.reload} />;
@@ -341,6 +395,8 @@ export function LocationDetailPage() {
         ← {t.common.back} {t.nav.locations}
       </Link>
 
+      {actionError && <ErrorBanner error={actionError} />}
+
       <header className="page-header">
         <div>
           <div className="title-row">
@@ -356,8 +412,26 @@ export function LocationDetailPage() {
               {unit.contact_phone ?? t.common.none}
             </div>
           </div>
+          <button className="btn btn-secondary" onClick={() => setEditing(true)}>
+            {t.common.edit}
+          </button>
+          <button className="btn btn-ghost danger" onClick={remove}>
+            {t.common.delete}
+          </button>
         </div>
       </header>
+
+      {editing && (
+        <LocationFormModal
+          location={unit}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            location.reload();
+            shell.locations.reload();
+          }}
+        />
+      )}
 
       {(items.data ?? []).length === 0 ? (
         <EmptyState message={t.units.itemsEmpty} />

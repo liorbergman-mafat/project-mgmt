@@ -28,10 +28,10 @@ projects ──┬─< items >── type_id / model_id / status_id / location_i
 | Table            | What it holds                                                              |
 | ---------------- | --------------------------------------------------------------------------- |
 | `projects`       | Top-level grouping. Everything else hangs off a project.                    |
-| `item_types`     | The Type dropdown's options (e.g. קשר, מחשוב). Managed from Settings.       |
-| `item_models`    | The Model dropdown's options, each tied to one type. Managed from Settings. |
+| `item_types`     | The Type dropdown's options (e.g. קשר, מחשוב). Managed from Settings → ציוד. |
+| `item_models`    | The Model dropdown's options, each tied to one type. Managed from Settings → ציוד, nested under their type. |
 | `item_statuses`  | The Status dropdown's options (e.g. בשימוש, במחסן). Managed from Settings.  |
-| `locations`      | Everywhere an item can be — a borrowing unit or a warehouse. Managed from Settings. |
+| `locations`      | Everywhere an item can be — a borrowing unit or a warehouse. Created and edited from Settings only. |
 | `items`          | One row per physical item, owned by exactly one project. Type/Model/Status/Location + a free-text serial. |
 | `loans`          | "Item X was loaned to location Y under project Z", with dates + status — separate from the item's own status/location. |
 | `feedback`       | What a location said, when they said it, optionally about one loan.         |
@@ -110,8 +110,13 @@ The sign-in screen is a **placeholder** — any non-empty pair gets you in. See
 
 The sidebar holds the three screens; the gear beside your name opens Settings.
 
-1. **הגדרות** — set up the dropdown option lists once: Types, Models (each tied
-   to a type), Statuses, and Locations (units, warehouses, ...).
+1. **הגדרות** — set up the dropdown option lists once, across three tabs:
+   - **ציוד** — the catalogue: every Type, with its Models nested under it.
+     Expand a type to see, add, edit or delete its models.
+   - **סטטוסים** — the Status options.
+   - **מיקומים** — units, warehouses, anywhere an item can be. This is the
+     **only** place a location can be created or edited; the מיקומים screen in
+     the sidebar is a read-only directory.
 2. **פרויקטים** — the landing screen: one card per project with its loan, open,
    and feedback counts. Open a project for three tabs:
    - **פריטי הפרויקט** — **+ פריט חדש** adds an item to *this* project
@@ -119,9 +124,10 @@ The sidebar holds the three screens; the gear beside your name opens Settings.
    - **השאלות** — **+ השאלה חדשה** records one of the project's items loaned to
      a location.
    - **משוב** — **+ משוב חדש** records what a location said, and when.
-3. **מיקומים** — the directory: every unit and warehouse, with what it holds and
-   how many loans are open there. Selecting a row opens a panel with its contact,
-   its stock by type and model, and its latest feedback.
+3. **מיקומים** — the read-only directory: every unit and warehouse, with what it
+   holds and how many loans are open there. Selecting a row opens a panel with
+   its contact, its stock by type and model, and its latest feedback. Adding and
+   editing locations happens in **הגדרות** only.
 4. **משוב מהיחידות** — every project's feedback in one feed, filterable by low
    ratings, this month, or unrated, with average ratings per equipment type.
 

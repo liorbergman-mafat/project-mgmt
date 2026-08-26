@@ -91,21 +91,41 @@ create table if not exists locations (
 alter table locations add column if not exists category text;
 
 -- ---------------------------------------------------------------------------
+-- contacts — named people at a location who can sign for a loan. A location
+-- can have any number of them; unlike locations.contact_name/contact_phone
+-- (a single freeform "who to call" note), these are the individually
+-- selectable people the loans.signer_contact_id below points at.
+-- ---------------------------------------------------------------------------
+create table if not exists contacts (
+    id              uuid primary key default gen_random_uuid(),
+    location_id     uuid        not null references locations(id) on delete cascade,
+    full_name       text        not null,
+    personal_number text        not null,
+    phone           text        not null,
+    role            text,
+    created_at      timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
 -- items — one row per physical item, owned by exactly one project (no more
--- shared catalogue). Type/Model/Status/Location are all picked from the
--- lookup lists above; only the serial number is freeform.
+-- shared catalogue). Category (item_types)/Status/Location are required;
+-- model is optional — an item can be linked straight to its category with
+-- no model picked. Only the serial number is freeform.
 -- ---------------------------------------------------------------------------
 create table if not exists items (
     id          uuid primary key default gen_random_uuid(),
     project_id  uuid        not null references projects(id)      on delete cascade,
     type_id     uuid        not null references item_types(id)    on delete restrict,
-    model_id    uuid        not null references item_models(id)   on delete restrict,
+    model_id    uuid        references item_models(id)            on delete restrict,
     serial_id   text,
     status_id   uuid        not null references item_statuses(id) on delete restrict,
     location_id uuid        not null references locations(id)     on delete restrict,
     created_at  timestamptz not null default now(),
     updated_at  timestamptz not null default now()
 );
+
+-- Migration for databases created before items.model_id became optional.
+alter table items alter column model_id drop not null;
 
 -- ---------------------------------------------------------------------------
 -- loans — "item X was loaned to location Y under project Z", with dates +
@@ -114,19 +134,28 @@ create table if not exists items (
 -- specific loan.
 -- ---------------------------------------------------------------------------
 create table if not exists loans (
-    id          uuid primary key default gen_random_uuid(),
-    project_id  uuid        not null references projects(id)  on delete cascade,
-    item_id     uuid        not null references items(id)     on delete cascade,
-    location_id uuid        not null references locations(id) on delete restrict,
-    quantity    integer     not null default 1 check (quantity > 0),
-    status      text        not null default 'loaned'
-                            check (status in ('loaned', 'returned', 'lost')),
-    loaned_at   timestamptz not null default now(),
-    returned_at timestamptz,
-    notes       text,
-    created_at  timestamptz not null default now(),
-    updated_at  timestamptz not null default now()
+    id                uuid primary key default gen_random_uuid(),
+    project_id        uuid        not null references projects(id)  on delete cascade,
+    item_id           uuid        not null references items(id)     on delete cascade,
+    location_id       uuid        not null references locations(id) on delete restrict,
+    quantity          integer     not null default 1 check (quantity > 0),
+    status            text        not null default 'loaned'
+                                  check (status in ('loaned', 'returned', 'lost')),
+    loaned_at         timestamptz not null default now(),
+    returned_at       timestamptz,
+    notes             text,
+    signer_contact_id uuid        references contacts(id) on delete restrict,
+    created_at        timestamptz not null default now(),
+    updated_at        timestamptz not null default now()
 );
+
+-- Migration: the loan's signer moved from four freeform text fields to a
+-- reference to one of the unit's contacts (see the contacts table above).
+alter table loans drop column if exists signer_name;
+alter table loans drop column if exists signer_personal_number;
+alter table loans drop column if exists signer_phone;
+alter table loans drop column if exists signer_role;
+alter table loans add column if not exists signer_contact_id uuid references contacts(id) on delete restrict;
 
 -- ---------------------------------------------------------------------------
 -- feedback — what the borrowing location said, and when they said it.
@@ -153,10 +182,12 @@ create index if not exists items_type_id_idx        on items(type_id);
 create index if not exists items_model_id_idx       on items(model_id);
 create index if not exists items_status_id_idx      on items(status_id);
 create index if not exists items_location_id_idx    on items(location_id);
+create index if not exists contacts_location_id_idx on contacts(location_id);
 create index if not exists loans_project_id_idx     on loans(project_id);
 create index if not exists loans_location_id_idx    on loans(location_id);
 create index if not exists loans_item_id_idx        on loans(item_id);
 create index if not exists loans_status_idx         on loans(status);
+create index if not exists loans_signer_contact_id_idx on loans(signer_contact_id);
 create index if not exists feedback_project_id_idx  on feedback(project_id);
 create index if not exists feedback_location_id_idx on feedback(location_id);
 create index if not exists feedback_loan_id_idx     on feedback(loan_id);
@@ -202,6 +233,7 @@ alter table item_types    enable row level security;
 alter table item_models   enable row level security;
 alter table item_statuses enable row level security;
 alter table locations     enable row level security;
+alter table contacts      enable row level security;
 alter table items         enable row level security;
 alter table loans         enable row level security;
 alter table feedback      enable row level security;

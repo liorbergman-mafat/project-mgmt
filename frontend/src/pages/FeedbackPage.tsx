@@ -42,7 +42,7 @@ function matches(entry: Feedback, filter: Filter): boolean {
 
 /** The 3px leading edge encodes the rating at a glance. */
 function edgeColour(rating: number | null): string {
-  if (rating === null) return "#C3CAD6";
+  if (rating === null) return "var(--border-strong)";
   return rating <= LOW_RATING ? "var(--red)" : "var(--cyan)";
 }
 

@@ -48,11 +48,21 @@ export interface Location {
   created_at: string;
 }
 
+export interface Contact {
+  id: string;
+  location_id: string;
+  full_name: string;
+  personal_number: string;
+  phone: string;
+  role: string | null;
+  created_at: string;
+}
+
 export interface Item {
   id: string;
   project_id: string;
   type_id: string;
-  model_id: string;
+  model_id: string | null;
   serial_id: string | null;
   status_id: string;
   location_id: string;
@@ -74,10 +84,12 @@ export interface Loan {
   loaned_at: string;
   returned_at: string | null;
   notes: string | null;
+  signer_contact_id: string | null;
   created_at: string;
   updated_at: string;
   item: Item | null;
   location: Location | null;
+  signer: Contact | null;
 }
 
 export interface Feedback {
