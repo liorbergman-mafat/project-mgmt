@@ -20,6 +20,7 @@ import {
   ErrorBanner,
   Field,
   FormActions,
+  ITEM_STATUS_TONE,
   Modal,
   Pill,
   Spinner,
@@ -33,18 +34,6 @@ const PROJECT_TONE: Record<ProjectStatus, Tone> = {
   active: "green",
   completed: "blue",
   archived: "grey",
-};
-
-/**
- * Item statuses are rows in a table the user edits, not a fixed enum, so the
- * pill colour is keyed off the names the seed data ships with and falls back
- * to grey for anything added later.
- */
-const ITEM_STATUS_TONE: Record<string, Tone> = {
-  "בשימוש": "green",
-  "במחסן": "blue",
-  "בתחזוקה": "amber",
-  "הושבת": "grey",
 };
 
 type Tab = "items" | "loans" | "feedback";

@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
 import { useAsync } from "../hooks";
 import { locationLabel, t } from "../i18n";
 import { useShell } from "../shellData";
-import { ErrorBanner, Field, FormActions, Modal, Spinner } from "./ui";
+import { Combobox, ErrorBanner, Field, FormActions, Modal, Spinner } from "./ui";
 import type { Item } from "../types";
+
+/** Trimmed, case-insensitive — so "מצלמות" and " מצלמות " resolve to the same row. */
+const norm = (value: string) => value.trim().toLowerCase();
 
 /**
  * Add or edit one piece of equipment.
@@ -44,8 +47,8 @@ export function ItemFormModal({
     [item?.id ?? ""],
   );
 
-  const [typeId, setTypeId] = useState(item?.type_id ?? defaultTypeId ?? "");
-  const [modelId, setModelId] = useState(item?.model_id ?? defaultModelId ?? "");
+  const [typeName, setTypeName] = useState(item?.type?.name ?? "");
+  const [modelName, setModelName] = useState(item?.model?.name ?? "");
   const [serialId, setSerialId] = useState(item?.serial_id ?? "");
   const [projectId, setProjectId] = useState(item?.project_id ?? defaultProjectId ?? "");
   const [statusId, setStatusId] = useState(item?.status_id ?? "");
@@ -53,8 +56,26 @@ export function ItemFormModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Preselecting by id (e.g. "add item to this category") only has a name to
+  // show once the lookup list has loaded — resolve it once, the first time
+  // each list arrives, without stomping on whatever the user has since typed.
+  const resolvedTypeDefaultRef = useRef(false);
+  if (!resolvedTypeDefaultRef.current && !item && defaultTypeId && types.data) {
+    resolvedTypeDefaultRef.current = true;
+    const match = types.data.find((ty) => ty.id === defaultTypeId);
+    if (match) setTypeName(match.name);
+  }
+  const resolvedModelDefaultRef = useRef(false);
+  if (!resolvedModelDefaultRef.current && !item && defaultModelId && models.data) {
+    resolvedModelDefaultRef.current = true;
+    const match = models.data.find((m) => m.id === defaultModelId);
+    if (match) setModelName(match.name);
+  }
+
   const typeRows = types.data ?? [];
-  const modelsForType = (models.data ?? []).filter((m) => m.type_id === typeId);
+  const matchedType = typeRows.find((ty) => norm(ty.name) === norm(typeName));
+  const typeId = matchedType?.id ?? "";
+  const modelsForType = typeId ? (models.data ?? []).filter((m) => m.type_id === typeId) : [];
   const projects = (shell.projects.data ?? []).filter(
     // An archived project takes no new equipment, but the item being edited
     // stays listed under whichever project it already belongs to.
@@ -63,12 +84,33 @@ export function ItemFormModal({
   const locations = shell.locations.data ?? [];
 
   const loading = types.loading || models.loading || statuses.loading;
-  const listsEmpty = !loading && (typeRows.length === 0 || projects.length === 0);
+  const listsEmpty = !loading && projects.length === 0;
   const listsError = types.error ?? models.error ?? statuses.error;
 
-  function onTypeChange(value: string) {
-    setTypeId(value);
-    setModelId("");
+  // Switching to a different existing category invalidates a model already
+  // typed in (it belongs to the old category) — but don't wipe it while the
+  // category text is merely mid-edit and transiently unmatched.
+  const typeIdOnFocusRef = useRef(typeId);
+
+  async function resolveTypeId(): Promise<string> {
+    const name = typeName.trim();
+    const existing = typeRows.find((ty) => norm(ty.name) === norm(name));
+    if (existing) return existing.id;
+    const created = await api.itemTypes.create({ name });
+    types.reload();
+    return created.id;
+  }
+
+  async function resolveModelId(resolvedTypeId: string): Promise<string | null> {
+    const name = modelName.trim();
+    if (!name) return null;
+    const existing = (models.data ?? []).find(
+      (m) => m.type_id === resolvedTypeId && norm(m.name) === norm(name),
+    );
+    if (existing) return existing.id;
+    const created = await api.itemModels.create({ type_id: resolvedTypeId, name });
+    models.reload();
+    return created.id;
   }
 
   async function submit(e: FormEvent) {
@@ -76,10 +118,12 @@ export function ItemFormModal({
     setSaving(true);
     setError(null);
     try {
+      const resolvedTypeId = await resolveTypeId();
+      const resolvedModelId = await resolveModelId(resolvedTypeId);
       if (item) {
         await api.items.update(item.id, {
-          type_id: typeId,
-          model_id: modelId || null,
+          type_id: resolvedTypeId,
+          model_id: resolvedModelId,
           serial_id: serialId.trim() || null,
           status_id: statusId,
           location_id: locationId,
@@ -87,8 +131,8 @@ export function ItemFormModal({
       } else {
         await api.items.create({
           project_id: projectId,
-          type_id: typeId,
-          model_id: modelId || null,
+          type_id: resolvedTypeId,
+          model_id: resolvedModelId,
           serial_id: serialId.trim() || null,
         });
       }
@@ -99,7 +143,7 @@ export function ItemFormModal({
     }
   }
 
-  const incomplete = !typeId || (item ? !statusId || !locationId : !projectId);
+  const incomplete = !typeName.trim() || (item ? !statusId || !locationId : !projectId);
 
   return (
     <Modal title={item ? t.equipment.edit : t.equipment.new} onClose={onClose}>
@@ -117,38 +161,36 @@ export function ItemFormModal({
           )}
           {listsEmpty && (
             <div className="span-2">
-              <ErrorBanner
-                error={typeRows.length === 0 ? t.projectItems.listsEmpty : t.equipment.noProjects}
-              />
+              <ErrorBanner error={t.equipment.noProjects} />
             </div>
           )}
 
           <Field label={t.projectItems.type} required>
-            <select value={typeId} onChange={(e) => onTypeChange(e.target.value)} required autoFocus>
-              <option value="">{t.common.none}</option>
-              {typeRows.map((ty) => (
-                <option key={ty.id} value={ty.id}>
-                  {ty.name}
-                </option>
-              ))}
-            </select>
+            <Combobox
+              id="item-type"
+              value={typeName}
+              onChange={(value) => setTypeName(value)}
+              options={typeRows.map((ty) => ty.name)}
+              required
+              autoFocus
+              onFocus={() => {
+                typeIdOnFocusRef.current = typeId;
+              }}
+              onBlur={() => {
+                if (typeId !== typeIdOnFocusRef.current) setModelName("");
+              }}
+            />
           </Field>
 
           <Field label={t.projectItems.model}>
-            <select
-              value={modelId}
-              onChange={(e) => setModelId(e.target.value)}
-              disabled={!typeId}
-            >
-              <option value="">
-                {typeId ? t.equipmentPage.noModel : t.projectItems.selectTypeFirst}
-              </option>
-              {modelsForType.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+            <Combobox
+              id="item-model"
+              value={modelName}
+              onChange={setModelName}
+              options={modelsForType.map((m) => m.name)}
+              disabled={!typeName.trim()}
+              placeholder={typeName.trim() ? t.equipmentPage.noModel : t.projectItems.selectTypeFirst}
+            />
           </Field>
 
           <Field label={t.projectItems.serialId}>

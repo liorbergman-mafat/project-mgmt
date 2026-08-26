@@ -145,6 +145,59 @@ export function Field({
 }
 
 /* -------------------------------------------------------------------------
+ * Combobox — a text input backed by a suggestion list, built on the native
+ * <datalist> so free text always works: pick a suggestion or type a value
+ * that isn't in the list yet. The caller decides what typing a new value
+ * means (e.g. creating it on submit) — this component only edits the text.
+ * ---------------------------------------------------------------------- */
+export function Combobox({
+  id,
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  required,
+  autoFocus,
+  onFocus,
+  onBlur,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
+  autoFocus?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
+}) {
+  const listId = `${id}-options`;
+  return (
+    <>
+      <input
+        list={listId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        required={required}
+        autoFocus={autoFocus}
+        autoComplete="off"
+        onFocus={onFocus}
+        onBlur={onBlur}
+      />
+      <datalist id={listId}>
+        {options.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------
  * Status pills.
  * ---------------------------------------------------------------------- */
 export type Tone = "green" | "blue" | "amber" | "red" | "grey";
@@ -152,6 +205,18 @@ export type Tone = "green" | "blue" | "amber" | "red" | "grey";
 export function Pill({ tone, children }: { tone: Tone; children: ReactNode }) {
   return <span className={`pill pill-${tone}`}>{children}</span>;
 }
+
+/**
+ * Item statuses are rows in a table the user edits, not a fixed enum, so the
+ * pill colour is keyed off the names the seed data ships with and falls back
+ * to grey for anything added later.
+ */
+export const ITEM_STATUS_TONE: Record<string, Tone> = {
+  "בשימוש": "green",
+  "במחסן": "blue",
+  "בתחזוקה": "amber",
+  "הושבת": "grey",
+};
 
 /* -------------------------------------------------------------------------
  * Page-level states.

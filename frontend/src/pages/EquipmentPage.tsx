@@ -11,6 +11,7 @@ import {
   ErrorBanner,
   Field,
   FormActions,
+  ITEM_STATUS_TONE,
   Modal,
   Pill,
   Spinner,
@@ -251,6 +252,7 @@ export default function EquipmentPage() {
                       deep
                       name={itemLabel(item)}
                       meta={item.serial_id ?? undefined}
+                      extra={<ItemStatusLocation item={item} />}
                       onEdit={() => setEditingItem(item)}
                       onDelete={() => removeItem(item)}
                     />
@@ -322,6 +324,7 @@ export default function EquipmentPage() {
                         deep
                         name={item.serial_id ?? t.equipment.noSerial}
                         meta={projectsById.get(item.project_id)?.name}
+                        extra={<ItemStatusLocation item={item} />}
                         onEdit={() => setEditingItem(item)}
                         onDelete={() => removeItem(item)}
                       />
@@ -374,6 +377,7 @@ export default function EquipmentPage() {
                                   deep
                                   name={item.serial_id ?? t.equipment.noSerial}
                                   meta={projectsById.get(item.project_id)?.name}
+                                  extra={<ItemStatusLocation item={item} />}
                                   onEdit={() => setEditingItem(item)}
                                   onDelete={() => removeItem(item)}
                                 />
@@ -523,15 +527,32 @@ function ListLayout({
   );
 }
 
+/** The status pill + location shown after an item's name in the equipment lists below. */
+function ItemStatusLocation({ item }: { item: Item }) {
+  return (
+    <span className="list-row-meta">
+      {" · "}
+      <Pill tone={ITEM_STATUS_TONE[item.status?.name ?? ""] ?? "grey"}>
+        {item.status?.name ?? t.common.none}
+      </Pill>
+      {" · "}
+      {locationLabel(item.location)}
+    </span>
+  );
+}
+
 function ListRow({
   name,
   meta,
+  extra,
   deep,
   onEdit,
   onDelete,
 }: {
   name: string;
   meta?: string;
+  /** Extra info after the meta — used for an item's status pill + location. */
+  extra?: ReactNode;
   /** Indented, for an item sitting under its model. */
   deep?: boolean;
   onEdit: () => void;
@@ -542,6 +563,7 @@ function ListRow({
       <div>
         <span className="list-row-name">{name}</span>
         {meta && <span className="list-row-meta"> · {meta}</span>}
+        {extra}
       </div>
       <div className="row-actions">
         <button className="link-btn" onClick={onEdit}>
