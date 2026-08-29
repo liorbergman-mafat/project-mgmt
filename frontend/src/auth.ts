@@ -47,7 +47,7 @@ export function useSession() {
   return { user, signIn, signOut };
 }
 
-/** "l.bergman" → "L.B" — the two-letter monogram in the sidebar avatar. */
+/** "l.bergman" → "L.B" — the two-letter monogram in the nav bar avatar. */
 export function initials(username: string): string {
   const parts = username.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   return parts

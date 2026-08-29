@@ -3,9 +3,7 @@
  * and the components stay free of hardcoded copy.
  */
 export const t = {
-  appName: "ניהול השאלות והטמעות",
-  /** The app name broken where the sidebar wordmark wraps it. */
-  appNameLines: ["ניהול השאלות", "והטמעות"],
+  appName: "חברון",
   nav: {
     projects: "פרויקטים",
     equipment: "ציוד",
@@ -40,7 +38,7 @@ export const t = {
     password: "סיסמה",
     submit: "התחברות",
     note: "כל הפעולות במערכת נרשמות ומשויכות למשתמש.",
-    /** Shown under the user name in the sidebar — there is no user record to read a real role from. */
+    /** The avatar's tooltip — there is no user record to read a real role from. */
     role: "משתמש מערכת",
     missing: "יש להזין שם משתמש וסיסמה.",
   },
@@ -122,16 +120,14 @@ export const t = {
   feedback: {
     title: "משוב",
     new: "משוב חדש",
-    location: "מיקום מדווח",
-    relatedLoan: "השאלה קשורה",
-    generalFeedback: "משוב כללי לפרויקט",
+    location: "יחידה",
     rating: "דירוג",
     unrated: "ללא דירוג",
     content: "תוכן המשוב",
     at: "תאריך המשוב",
     empty: "טרם התקבל משוב בפרויקט זה.",
 
-    /* The cross-project feed reached from the sidebar. */
+    /* The cross-project feed reached from the nav bar. */
     feedTitle: "משוב מהיחידות",
     feedSubtitle: "מה שנשלח מהשטח, לפי סדר הגעה",
     feedEmpty: "טרם התקבל משוב במערכת.",
@@ -142,8 +138,6 @@ export const t = {
       thisMonth: "החודש",
       unrated: "ללא דירוג",
     },
-    averageByType: "ממוצע דירוג לפי קטגוריית ציוד",
-    averageEmpty: "אין עדיין משוב מדורג.",
     monthCount: "משובים החודש",
     monthScope: (locations: number) =>
       locations === 1 ? "מיחידה אחת" : `מ־${locations} יחידות שונות`,
@@ -208,7 +202,7 @@ export const t = {
   },
 
   locations: {
-    /* The directory screen reached from the sidebar. */
+    /* The directory screen reached from the nav bar. */
     title: "מיקומים",
     subtitle: "יחידות ומחסנים — היכן שנמצא כל ציוד",
     itemCount: "פריטים",

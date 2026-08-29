@@ -28,7 +28,11 @@ export default function LoginPage({ onSignIn }: { onSignIn: (username: string) =
   return (
     <div className="login">
       <form className="login-box" onSubmit={submit}>
-        <Logo size={160} withWordmark />
+        {/* The new mark carries no wordmark, so the name is set in text. */}
+        <div className="login-brand">
+          <Logo size={104} />
+          <div className="login-brand-name">{t.appName}</div>
+        </div>
 
         <h1>{t.auth.title}</h1>
         <p className="login-sub">{t.auth.subtitle}</p>

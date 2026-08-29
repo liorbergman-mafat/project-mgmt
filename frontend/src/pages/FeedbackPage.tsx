@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import { api } from "../api";
-import { useAsync } from "../hooks";
-import { formatRelative, itemLabel, locationLabel, t, toLocalInputValue } from "../i18n";
+import { formatRelative, locationLabel, t, toLocalInputValue } from "../i18n";
 import { useShell } from "../shellData";
 import {
   EmptyState,
@@ -159,7 +158,6 @@ function FeedCard({
           ·
         </span>
         <span className="feedback-project">{project?.name ?? t.common.none}</span>
-        {entry.loan?.item && <span className="pill pill-item">{itemLabel(entry.loan.item)}</span>}
         <Stars value={entry.rating} />
         <time className="when" dateTime={entry.feedback_at}>
           {formatRelative(entry.feedback_at)}
@@ -180,52 +178,14 @@ function FeedCard({
 }
 
 /* ------------------------------------------------------------------------
- * Right rail: how each kind of kit is scoring, and this month's volume.
+ * Right rail: this month's volume.
  * --------------------------------------------------------------------- */
 function FeedbackRail({ entries }: { entries: Feedback[] }) {
-  const averages = useMemo(() => {
-    const totals = new Map<string, { sum: number; count: number }>();
-    for (const entry of entries) {
-      const type = entry.loan?.item?.type?.name;
-      if (!type || entry.rating === null) continue;
-      const bucket = totals.get(type) ?? { sum: 0, count: 0 };
-      bucket.sum += entry.rating;
-      bucket.count += 1;
-      totals.set(type, bucket);
-    }
-    return [...totals]
-      .map(([label, { sum, count }]) => ({ label, average: sum / count }))
-      .sort((a, b) => b.average - a.average);
-  }, [entries]);
-
   const thisMonth = entries.filter((entry) => isThisMonth(entry.feedback_at));
   const distinctLocations = new Set(thisMonth.map((entry) => entry.location_id)).size;
 
   return (
     <aside className="rail">
-      <div className="rail-card">
-        <div className="section-label" style={{ marginBottom: 12 }}>
-          {t.feedback.averageByType}
-        </div>
-        {averages.length === 0 ? (
-          <p className="muted small">{t.feedback.averageEmpty}</p>
-        ) : (
-          <div className="bars">
-            {averages.map((row) => (
-              <div key={row.label}>
-                <div className="bar-head">
-                  <span>{row.label}</span>
-                  <span className="muted num">{row.average.toFixed(1)}</span>
-                </div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${(row.average / 5) * 100}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       <div className="rail-card dark">
         <div className="label">{t.feedback.monthCount}</div>
         <div className="value num">{thisMonth.length}</div>
@@ -250,29 +210,11 @@ function NewFeedbackModal({
   const shell = useShell();
   const [projectId, setProjectId] = useState("");
   const [locationId, setLocationId] = useState("");
-  const [loanId, setLoanId] = useState("");
   const [rating, setRating] = useState("");
   const [content, setContent] = useState("");
   const [feedbackAt, setFeedbackAt] = useState(toLocalInputValue(new Date()));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  // Only the chosen project's loans can be attached to its feedback.
-  const loans = useAsync(
-    () => (projectId ? api.loans.list(projectId) : Promise.resolve([])),
-    [projectId],
-  );
-
-  function onProjectChange(value: string) {
-    setProjectId(value);
-    setLoanId("");
-  }
-
-  function onLoanChange(value: string) {
-    setLoanId(value);
-    const loan = (loans.data ?? []).find((l) => l.id === value);
-    if (loan) setLocationId(loan.location_id);
-  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -282,7 +224,6 @@ function NewFeedbackModal({
       await api.feedback.create({
         project_id: projectId,
         location_id: locationId,
-        loan_id: loanId || null,
         rating: rating ? Number(rating) : null,
         content: content.trim(),
         feedback_at: new Date(feedbackAt).toISOString(),
@@ -301,7 +242,7 @@ function NewFeedbackModal({
           <Field label={t.units.project} required span>
             <select
               value={projectId}
-              onChange={(e) => onProjectChange(e.target.value)}
+              onChange={(e) => setProjectId(e.target.value)}
               required
               autoFocus
             >
@@ -309,21 +250,6 @@ function NewFeedbackModal({
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label={t.feedback.relatedLoan} span>
-            <select
-              value={loanId}
-              onChange={(e) => onLoanChange(e.target.value)}
-              disabled={!projectId || loans.loading}
-            >
-              <option value="">{t.feedback.generalFeedback}</option>
-              {(loans.data ?? []).map((loan) => (
-                <option key={loan.id} value={loan.id}>
-                  {itemLabel(loan.item)} → {locationLabel(loan.location)}
                 </option>
               ))}
             </select>

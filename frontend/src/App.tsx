@@ -33,7 +33,7 @@ export default function App() {
 }
 
 /* ========================================================================
- * The signed-in shell: sidebar, the glowing main pane, and the routes.
+ * The signed-in shell: the top navigation bar, the main pane, and the routes.
  * ===================================================================== */
 function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
   const { glowRef, onMouseMove, onMouseLeave } = usePointerGlow<HTMLElement>();
@@ -56,20 +56,16 @@ function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
   );
 
   // Archived projects are out of sight on the list, so they are out of the
-  // sidebar count too.
+  // nav count too.
   const activeProjects = (projects.data ?? []).filter((p) => p.status !== "archived");
 
   return (
     <ShellProvider value={shell}>
       <div className="app">
-        <aside className="sidebar">
+        <header className="topbar">
           <div className="brand">
-            <Logo size={52} />
-            <div className="brand-name">
-              {t.appNameLines[0]}
-              <br />
-              {t.appNameLines[1]}
-            </div>
+            <Logo size={44} />
+            <div className="brand-name">{t.appName}</div>
           </div>
 
           <nav>
@@ -99,30 +95,25 @@ function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
             />
           </nav>
 
-          <div className="sidebar-foot">
-            <div className="user-row">
-              <span className="avatar" aria-hidden="true">
-                {initials(user)}
-              </span>
-              <div className="user-name">
-                {user}
-                <div className="user-role">{t.auth.role}</div>
-              </div>
-              <div className="user-actions">
-                <a
-                  href="/login"
-                  className="sign-out"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onSignOut();
-                  }}
-                >
-                  {t.shell.signOut}
-                </a>
-              </div>
-            </div>
+          <div className="topbar-user">
+            {/* The role is the only thing the bar has no room to spell out. */}
+            <span className="avatar" title={t.auth.role} aria-hidden="true">
+              {initials(user)}
+            </span>
+            <div className="user-name">{user}</div>
+            <a
+              href="/login"
+              className="sign-out"
+              onClick={(e) => {
+                e.preventDefault();
+                onSignOut();
+              }}
+            >
+              <SignOutIcon />
+              {t.shell.signOut}
+            </a>
           </div>
-        </aside>
+        </header>
 
         <main className="content" onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
           <div ref={glowRef} className="content-glow" aria-hidden="true" />
@@ -164,21 +155,21 @@ function NavItem({
       <span className="nav-icon" aria-hidden="true">
         {icon}
       </span>
-      <span>{label}</span>
+      <span className="nav-label">{label}</span>
       <span className="nav-count num">{count}</span>
     </NavLink>
   );
 }
 
 /* ------------------------------------------------------------------------
- * Sidebar glyphs. Outline style, 18px on a 24 grid, stroked in `currentColor`
+ * Nav glyphs. Outline style, 20px on a 24 grid, stroked in `currentColor`
  * so each one takes the colour of the nav row it sits in.
  * --------------------------------------------------------------------- */
 function NavGlyph({ children }: { children: ReactNode }) {
   return (
     <svg
-      width="18"
-      height="18"
+      width="20"
+      height="20"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -231,5 +222,29 @@ function FeedbackIcon() {
       <path d="M20.5 12.5a7.5 7.5 0 0 1-10.9 6.7L4 20.5l1.4-5.2A7.5 7.5 0 1 1 20.5 12.5Z" />
       <path d="M9 11.5h6M9 14.5h3.5" />
     </NavGlyph>
+  );
+}
+
+/**
+ * Leaving through the door. Drawn pointing at the inline end of a right-to-left
+ * line — the direction the reader leaves in — rather than mirrored at runtime.
+ */
+function SignOutIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
+      <path d="M8 8 4 12l4 4" />
+      <path d="M4 12h10" />
+    </svg>
   );
 }

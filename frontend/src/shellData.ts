@@ -3,12 +3,12 @@ import type { AsyncState } from "./hooks";
 import type { Feedback, Item, Location, ProjectSummary } from "./types";
 
 /**
- * The lists the sidebar counts are built from.
+ * The lists the nav bar counts are built from.
  *
  * They are fetched once by the shell and shared, rather than re-fetched by
  * each screen: the projects list, the equipment items, the locations
- * directory and the feedback feed are each both a screen *and* a sidebar
- * count, so a page that mutates one calls `reload()` on it and the sidebar
+ * directory and the feedback feed are each both a screen *and* a nav bar
+ * count, so a page that mutates one calls `reload()` on it and the nav bar
  * follows along.
  */
 export interface ShellData {

@@ -202,7 +202,6 @@ export default function ProjectDetailPage() {
         <NewFeedbackModal
           projectId={id}
           locations={locations}
-          loans={loans}
           onClose={() => setAddingFeedback(false)}
           onCreated={() => {
             setAddingFeedback(false);
@@ -444,7 +443,6 @@ function FeedbackCard({ entry, onChanged }: { entry: Feedback; onChanged: () => 
     <article className="card feedback-card">
       <div className="feedback-head">
         <strong>{locationLabel(entry.location)}</strong>
-        {entry.loan?.item && <span className="pill pill-item">{itemLabel(entry.loan.item)}</span>}
         <Stars value={entry.rating} />
         <time className="when" dateTime={entry.feedback_at}>
           {formatRelative(entry.feedback_at)}
@@ -668,33 +666,20 @@ function NewLoanModal({
 function NewFeedbackModal({
   projectId,
   locations,
-  loans,
   onClose,
   onCreated,
 }: {
   projectId: string;
   locations: Location[];
-  loans: Loan[];
   onClose: () => void;
   onCreated: () => void;
 }) {
   const [locationId, setLocationId] = useState("");
-  const [loanId, setLoanId] = useState("");
   const [rating, setRating] = useState("");
   const [content, setContent] = useState("");
   const [feedbackAt, setFeedbackAt] = useState(toLocalInputValue(new Date()));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  /**
-   * Picking a loan implies which location gave the feedback, so fill it in
-   * automatically — the user can still override it afterwards.
-   */
-  function onLoanChange(value: string) {
-    setLoanId(value);
-    const loan = loans.find((l) => l.id === value);
-    if (loan) setLocationId(loan.location_id);
-  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -704,7 +689,6 @@ function NewFeedbackModal({
       await api.feedback.create({
         project_id: projectId,
         location_id: locationId,
-        loan_id: loanId || null,
         rating: rating ? Number(rating) : null,
         content: content.trim(),
         feedback_at: new Date(feedbackAt).toISOString(),
@@ -720,19 +704,13 @@ function NewFeedbackModal({
     <Modal title={t.feedback.new} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="form-body">
-          <Field label={t.feedback.relatedLoan} span>
-            <select value={loanId} onChange={(e) => onLoanChange(e.target.value)} autoFocus>
-              <option value="">{t.feedback.generalFeedback}</option>
-              {loans.map((loan) => (
-                <option key={loan.id} value={loan.id}>
-                  {itemLabel(loan.item)} → {locationLabel(loan.location)}
-                </option>
-              ))}
-            </select>
-          </Field>
-
           <Field label={t.feedback.location} required>
-            <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
+            <select
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+              required
+              autoFocus
+            >
               <option value="">{t.common.none}</option>
               {locations.map((loc) => (
                 <option key={loc.id} value={loc.id}>

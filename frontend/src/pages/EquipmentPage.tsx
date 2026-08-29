@@ -172,7 +172,7 @@ export default function EquipmentPage() {
     setActionError(null);
     try {
       await api.items.remove(item.id);
-      // Deleting equipment takes its loans with it, so this also moves the sidebar counts.
+      // Deleting equipment takes its loans with it, so this also moves the nav bar counts.
       shell.reloadAll();
     } catch (err) {
       setActionError({
