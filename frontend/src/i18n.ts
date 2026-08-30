@@ -49,6 +49,7 @@ export const t = {
     /** The avatar's tooltip — there is no user record to read a real role from. */
     role: "משתמש מערכת",
     missing: "יש להזין שם משתמש וסיסמה.",
+    invalid: "שם המשתמש או הסיסמה שגויים.",
   },
 
   projects: {

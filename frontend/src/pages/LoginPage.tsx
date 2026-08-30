@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { verify } from "../auth";
 import { Logo } from "../components/Logo";
 import { ErrorBanner } from "../components/ui";
 import { t } from "../i18n";
@@ -7,9 +8,10 @@ import { t } from "../i18n";
 /**
  * Placeholder sign-in screen.
  *
- * There is no auth backend yet, so this accepts any non-empty pair and just
- * flips the session flag in `auth.ts` — see the warning there. It exists so
- * the shape of the screen is settled for whenever Supabase Auth is added.
+ * There is no auth backend yet: the pair is checked against the short list in
+ * `auth.ts`, which runs entirely in the browser — see the warning there. It
+ * exists so the shape of the screen is settled for whenever Supabase Auth is
+ * added.
  */
 export default function LoginPage({ onSignIn }: { onSignIn: (username: string) => void }) {
   const [username, setUsername] = useState("");
@@ -22,7 +24,15 @@ export default function LoginPage({ onSignIn }: { onSignIn: (username: string) =
       setError(t.auth.missing);
       return;
     }
-    onSignIn(username.trim());
+    const authorized = verify(username, password);
+    if (!authorized) {
+      // Deliberately one message for both halves — naming which one was wrong
+      // tells a stranger which usernames exist.
+      setError(t.auth.invalid);
+      setPassword("");
+      return;
+    }
+    onSignIn(authorized);
   }
 
   return (
