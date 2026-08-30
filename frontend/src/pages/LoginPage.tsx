@@ -27,46 +27,56 @@ export default function LoginPage({ onSignIn }: { onSignIn: (username: string) =
 
   return (
     <div className="login">
-      <form className="login-box" onSubmit={submit}>
-        {/* The new mark carries no wordmark, so the name is set in text. */}
-        <div className="login-brand">
-          <Logo size={104} />
-          <div className="login-brand-name">{t.appName}</div>
-        </div>
+      <div className="login-form-pane">
+        <form className="login-box" onSubmit={submit}>
+          {/* The mark carries no wordmark, so the name is set in text. */}
+          <div className="login-brand">
+            <Logo />
+            <div>
+              <div className="login-brand-name">{t.appName}</div>
+              <div className="login-brand-sub">{t.auth.title}</div>
+            </div>
+          </div>
 
-        <h1>{t.auth.title}</h1>
-        <p className="login-sub">{t.auth.subtitle}</p>
+          <p className="login-sub">{t.auth.subtitle}</p>
 
-        <label className="field">
-          <span className="field-label">{t.auth.username}</span>
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            autoFocus
-          />
-        </label>
+          {error && <ErrorBanner error={error} />}
 
-        <label className="field">
-          <span className="field-label">{t.auth.password}</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
-        </label>
+          <div className="login-fields">
+            <label className="field">
+              <span className="field-label">{t.auth.username}</span>
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                autoFocus
+              />
+            </label>
 
-        {error && <ErrorBanner error={error} />}
+            <label className="field">
+              <span className="field-label">{t.auth.password}</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+            </label>
 
-        <div className="login-actions">
-          <button type="submit" className="btn btn-primary">
-            {t.auth.submit}
-          </button>
-        </div>
+            <button type="submit" className="btn btn-primary">
+              {t.auth.submit}
+            </button>
+          </div>
 
-        <p className="login-note">{t.auth.note}</p>
-      </form>
+          <p className="login-note">{t.auth.note}</p>
+        </form>
+      </div>
+
+      {/* Two radial washes behind the mark — the teal and oxblood halves of
+          the shield, thrown onto the panel behind it. */}
+      <div className="login-art" aria-hidden="true">
+        <Logo />
+      </div>
     </div>
   );
 }

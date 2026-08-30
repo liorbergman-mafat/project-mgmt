@@ -7,8 +7,11 @@ import { groupByBrigade, options, sortCategories } from "../locationGrouping";
 import { affiliation, buildLocationStats, emptyStats } from "../locationStats";
 import type { LocationStats } from "../locationStats";
 import { useShell } from "../shellData";
+import { ContactFormModal } from "../components/ContactFormModal";
 import { LocationFormModal } from "../components/LocationFormModal";
+import { ChevronDown, LocationsIcon } from "../components/icons";
 import {
+  ConfirmModal,
   EmptyState,
   ErrorBanner,
   FilterChips,
@@ -18,11 +21,11 @@ import {
 } from "../components/ui";
 import type { Item, Location, ProjectSummary } from "../types";
 
-const DEFAULT_KIND = "יחידה";
-const DEFAULT_CATEGORY = "סדיר קחצ״ר";
+/** The chip that turns the category filter off. Not a category name. */
+const ALL = "__all__";
 
 /* ========================================================================
- * The directory: every location on the left, a drill-down on the right.
+ * The directory: every location grouped by brigade, a drill-down beside it.
  * ===================================================================== */
 export function LocationsPage() {
   const shell = useShell();
@@ -36,88 +39,75 @@ export function LocationsPage() {
     [items.data, loans.data, shell.feedback.data],
   );
 
-  // The full directory runs to a few hundred rows, so it opens with the two
-  // filters the rest of the app narrows locations by — same logic as the
-  // Settings locations tab: no "all" option, default kind/category with a
-  // fallback to the first option that actually exists in this deployment.
-  const [kind, setKind] = useState(DEFAULT_KIND);
-  const [category, setCategory] = useState(DEFAULT_CATEGORY);
   const all = data ?? [];
 
-  const kinds = useMemo(
-    () => options(all, (row) => row.kind).map((value) => ({ key: value, label: value })),
+  // One chip row, in the fixed briefing order rather than alphabetical, with
+  // "all" in front — the directory runs to a few hundred rows and category is
+  // the cut that makes it navigable.
+  const [category, setCategory] = useState<string>(ALL);
+  const categories = useMemo(
+    () => [
+      { key: ALL, label: t.feedback.filters.all },
+      ...sortCategories(options(all, (row) => row.category)).map((value) => ({
+        key: value,
+        label: value,
+      })),
+    ],
     [all],
   );
 
-  const activeKind = kinds.some((k) => k.key === kind) ? kind : (kinds[0]?.key ?? "");
+  const activeCategory = categories.some((c) => c.key === category) ? category : ALL;
+  const visible =
+    activeCategory === ALL ? all : all.filter((row) => row.category === activeCategory);
 
-  const categories = useMemo(
-    () =>
-      sortCategories(
-        options(
-          all.filter((row) => row.kind === activeKind),
-          (row) => row.category,
-        ),
-      ).map((value) => ({ key: value, label: value })),
-    [all, activeKind],
-  );
-
-  const activeCategory = categories.some((c) => c.key === category)
-    ? category
-    : (categories[0]?.key ?? "");
-
-  const visible = all.filter(
-    (row) => row.kind === activeKind && row.category === activeCategory,
-  );
-
-  // A category can span hundreds of battalions/units, so they open bucketed
-  // by brigade, collapsed, rather than as one long flat table.
+  // A category can span hundreds of units, so they sit in collapsible buckets
+  // keyed by (category, brigade) — see groupByBrigade.
+  //
+  // They open *shut*: this directory is 243 units across 71 brigades, and
+  // expanding all of them at once is the wall of rows the grouping exists to
+  // avoid. Collapsed, each brigade is one row that still carries its totals.
   const groups = useMemo(() => groupByBrigade(visible), [visible]);
-  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState<Record<string, boolean>>({});
 
   function toggleGroup(key: string) {
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
+    setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Only a row inside an expanded group can be selected — a group that
-  // collapses again takes its selection (and the panel) with it.
-  const expandedRows = useMemo(
-    () => groups.filter((g) => open.has(g.key)).flatMap((g) => g.rows),
+  // Only a row that is actually on screen can stay selected — filtering the
+  // category out, or collapsing its group, takes the panel with it.
+  const shownRows = useMemo(
+    () => groups.filter((g) => open[g.key]).flatMap((g) => g.rows),
     [groups, open],
   );
-  const selected = expandedRows.find((row) => row.id === selectedId) ?? null;
-
-  // Switching kind can leave the current category with no rows under it —
-  // `activeCategory` above then falls back to that kind's first category.
-  const selectKind = setKind;
+  const selected = shownRows.find((row) => row.id === selectedId) ?? null;
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Location | null>(null);
+  const [addingContact, setAddingContact] = useState(false);
+  const [deleting, setDeleting] = useState<Location | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   function afterSaved(saved: Location) {
     setCreating(false);
     setEditing(null);
-    // Jump straight to the saved row's brigade group, so it's visible right away.
-    setOpen((prev) => new Set(prev).add(`${saved.category ?? ""} ${saved.brigade ?? ""}`));
+    // Open the saved row's group, so it is visible right away.
+    const key = `${saved.category ?? ""} ${saved.brigade ?? ""}`;
+    setOpen((prev) => ({ ...prev, [key]: true }));
     setSelectedId(saved.id);
     reload();
   }
 
   async function remove(location: Location) {
-    if (!confirm(t.common.confirmDelete)) return;
     setActionError(null);
     try {
       await api.locations.remove(location.id);
       setSelectedId(null);
+      setDeleting(null);
       reload();
     } catch (err) {
       setActionError((err as Error).message);
+      setDeleting(null);
     }
   }
 
@@ -128,9 +118,11 @@ export function LocationsPage() {
           <h1>{t.locations.title}</h1>
           <p className="subtitle">{t.locations.subtitle}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setCreating(true)}>
-          + {t.locations.new}
-        </button>
+        <div className="header-actions">
+          <button className="btn btn-primary" onClick={() => setCreating(true)}>
+            + {t.locations.new}
+          </button>
+        </div>
       </header>
 
       {error && <ErrorBanner error={error} onRetry={reload} />}
@@ -138,97 +130,127 @@ export function LocationsPage() {
       {items.error && <ErrorBanner error={items.error} onRetry={items.reload} />}
       {loans.error && <ErrorBanner error={loans.error} onRetry={loans.reload} />}
       {loading && <Spinner />}
-      {data && all.length === 0 && <EmptyState message={t.locations.emptyDirectory} />}
 
-      {all.length > 0 && (
-        <>
-          <FilterChips
-            label={t.locations.kind}
-            values={kinds}
-            selected={activeKind}
-            onSelect={selectKind}
-          />
-          {categories.length > 1 && (
-            <FilterChips
-              label={t.locations.category}
-              values={categories}
-              selected={activeCategory}
-              onSelect={setCategory}
-            />
-          )}
-        </>
+      {data && all.length === 0 && (
+        <EmptyState
+          message={t.locations.emptyDirectory}
+          icon={<LocationsIcon size={19} />}
+          action={
+            <button className="btn btn-secondary btn-sm" onClick={() => setCreating(true)}>
+              + {t.locations.new}
+            </button>
+          }
+        />
       )}
 
-      {all.length > 0 && visible.length === 0 && <EmptyState message={t.locations.noMatches} />}
+      {all.length > 0 && categories.length > 2 && (
+        <FilterChips values={categories} selected={activeCategory} onSelect={setCategory} />
+      )}
+
+      {all.length > 0 && visible.length === 0 && (
+        <EmptyState message={t.locations.noMatches} icon={<LocationsIcon size={19} />} />
+      )}
 
       {visible.length > 0 && (
         <div className="split split-locations">
-          <div className="table-card">
+          <div className="table-card main-pane">
+            <div className="card-head">
+              <span className="title quiet">{t.locations.grouped}</span>
+              <span className="count num">
+                {t.locations.groupedCount(visible.length, groups.length)}
+              </span>
+            </div>
+
             <div className="table-scroll">
               <table>
                 <thead>
                   <tr>
                     <th>{t.locations.name}</th>
-                    <th>{t.locations.kind}</th>
                     <th>{t.locations.battalion}</th>
-                    <th>{t.locations.itemCount}</th>
+                    <th>{t.locations.category}</th>
+                    <th>{t.locations.itemsHere}</th>
                     <th>{t.locations.openLoans}</th>
                   </tr>
                 </thead>
-                {groups.map((group) => (
-                  <tbody key={group.key}>
-                    <tr className="group-row">
-                      <td colSpan={5}>
-                        <button
-                          type="button"
-                          className="group-toggle"
-                          aria-expanded={open.has(group.key)}
-                          onClick={() => toggleGroup(group.key)}
-                        >
-                          <span className="chevron" aria-hidden="true">
-                            {open.has(group.key) ? "▾" : "▸"}
-                          </span>
-                          <span>{group.label}</span>
-                          <span className="group-count">
-                            {t.locations.battalionCount(group.rows.length)}
-                          </span>
-                        </button>
-                      </td>
-                    </tr>
 
-                    {open.has(group.key) &&
-                      group.rows.map((row) => {
-                        const stat = stats.get(row.id) ?? emptyStats();
-                        return (
-                          <tr
-                            key={row.id}
-                            className={`selectable${selected?.id === row.id ? " row-selected" : ""}`}
-                            onClick={() => setSelectedId(row.id)}
-                          >
-                            <td className="strong">{row.name}</td>
-                            <td style={{ color: "var(--slate)" }}>{row.kind ?? t.common.none}</td>
-                            <td style={{ color: "var(--slate)" }}>
-                              {row.battalion ?? t.common.none}
-                            </td>
-                            <td className="num">{stat.itemCount}</td>
-                            <td className="num strong">{stat.openLoans}</td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                ))}
+                {groups.map((group) => {
+                  const shut = !open[group.key];
+                  // The two right-hand columns keep counting while the group
+                  // is shut, so a collapsed brigade still says how much sits
+                  // under it.
+                  const totals = group.rows.reduce(
+                    (acc, row) => {
+                      const stat = stats.get(row.id) ?? emptyStats();
+                      return {
+                        items: acc.items + stat.itemCount,
+                        open: acc.open + stat.openLoans,
+                      };
+                    },
+                    { items: 0, open: 0 },
+                  );
+
+                  return (
+                    <tbody key={group.key}>
+                      <tr
+                        className="group-row"
+                        onClick={() => toggleGroup(group.key)}
+                        aria-expanded={!shut}
+                      >
+                        <td colSpan={3}>
+                          <div className="group-head-cell">
+                            <span
+                              className={`chevron${shut ? " collapsed" : ""}`}
+                              aria-hidden="true"
+                            >
+                              <ChevronDown />
+                            </span>
+                            <span className="label">{group.label}</span>
+                            <span className="count">
+                              {t.locations.battalionCount(group.rows.length)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="num">{totals.items}</td>
+                        <td className="num">{totals.open}</td>
+                      </tr>
+
+                      {!shut &&
+                        group.rows.map((row) => {
+                          const stat = stats.get(row.id) ?? emptyStats();
+                          return (
+                            <tr
+                              key={row.id}
+                              className={`selectable${selected?.id === row.id ? " row-selected" : ""}`}
+                              onClick={() => setSelectedId(row.id)}
+                            >
+                              <td className="strong">
+                                <span className="row-indent">{row.name}</span>
+                              </td>
+                              <td>{row.battalion ?? t.common.none}</td>
+                              <td className="muted">{row.category ?? t.common.none}</td>
+                              <td className="num">{stat.itemCount}</td>
+                              <td
+                                className={`num strong${stat.openLoans > 0 ? " teal" : " dim"}`}
+                              >
+                                {stat.openLoans}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  );
+                })}
               </table>
             </div>
           </div>
 
-          {selected && (
-            <LocationPanel
-              location={selected}
-              stats={stats.get(selected.id)}
-              onEdit={() => setEditing(selected)}
-              onDelete={() => remove(selected)}
-            />
-          )}
+          <LocationPanel
+            location={selected}
+            stats={selected ? stats.get(selected.id) : undefined}
+            onEdit={() => selected && setEditing(selected)}
+            onDelete={() => selected && setDeleting(selected)}
+            onAddContact={() => setAddingContact(true)}
+          />
         </div>
       )}
 
@@ -242,94 +264,134 @@ export function LocationsPage() {
           onSaved={afterSaved}
         />
       )}
+
+      {addingContact && selected && (
+        <ContactFormModal
+          locationId={selected.id}
+          onClose={() => setAddingContact(false)}
+          onSaved={() => setAddingContact(false)}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmModal
+          title={t.locations.deleteConfirmTitle}
+          message={t.locations.deleteConfirmMessage(deleting.name)}
+          onClose={() => setDeleting(null)}
+          onConfirm={() => remove(deleting)}
+        />
+      )}
     </>
   );
 }
 
+/**
+ * The drill-down beside the table. Stays mounted with nothing selected so the
+ * row doesn't reflow when a selection comes and goes.
+ */
 function LocationPanel({
   location,
   stats,
   onEdit,
   onDelete,
+  onAddContact,
 }: {
-  location: Location;
+  location: Location | null;
   stats: LocationStats | undefined;
   onEdit: () => void;
   onDelete: () => void;
+  onAddContact: () => void;
 }) {
+  if (!location) {
+    return (
+      <aside className="panel">
+        <div className="panel-body">
+          <p className="muted small">{t.locations.noSelection}</p>
+        </div>
+      </aside>
+    );
+  }
+
   const stat = stats ?? emptyStats();
-  const sub = [location.kind, affiliation(location)].filter(Boolean).join(" · ");
 
   return (
     <aside className="panel">
-      <div className="panel-title-row">
-        <div className="panel-title">{location.name}</div>
-        <div className="row-actions">
-          <button type="button" className="link-btn" onClick={onEdit}>
-            {t.common.edit}
-          </button>
-          <button type="button" className="link-btn danger" onClick={onDelete}>
-            {t.common.delete}
-          </button>
-        </div>
-      </div>
-      <div className="panel-sub">{sub || t.common.none}</div>
-
-      <div className="panel-stats">
-        <div className="panel-stat">
-          <div className="label">{t.locations.itemsHere}</div>
-          <div className="value num">{stat.itemCount}</div>
-        </div>
-        <div className="panel-stat">
-          <div className="label">{t.locations.openLoans}</div>
-          <div className="value num">{stat.openLoans}</div>
-        </div>
-      </div>
-
-      <div className="panel-block">
-        <div className="section-label">{t.locations.contact}</div>
-        <div className="panel-contact">
-          {location.contact_name ?? t.common.none}
-          <div className="num" style={{ color: "var(--slate)" }}>
-            {location.contact_phone ?? t.common.none}
+      <div className="panel-head">
+        <div className="panel-title-row">
+          <div className="panel-title">{location.name}</div>
+          <div className="row-actions">
+            <button type="button" className="link-btn" onClick={onEdit}>
+              {t.common.edit}
+            </button>
+            <button type="button" className="link-btn danger" onClick={onDelete}>
+              {t.common.delete}
+            </button>
           </div>
         </div>
+        <div className="panel-sub">
+          {[affiliation(location), location.category].filter(Boolean).join(" · ") ||
+            t.common.none}
+        </div>
+        <div className="panel-counts num">
+          {t.locations.panelCounts(stat.itemCount, stat.openLoans)}
+        </div>
       </div>
 
-      <div className="panel-block">
-        <div className="section-label">{t.locations.stock}</div>
-        {stat.stock.length === 0 ? (
-          <p className="muted small">{t.locations.stockEmpty}</p>
-        ) : (
-          <div className="stock-list">
-            {stat.stock.map((row) => (
-              <div className="stock-row" key={row.label}>
-                <span>{row.label}</span>
-                <span className="muted num">{row.count}</span>
-              </div>
-            ))}
+      <div className="panel-body">
+        <div className="panel-block">
+          <span className="section-label">{t.locations.contact}</span>
+          <div className="panel-contact">
+            {location.contact_name ?? t.common.none}
+            <div className="phone ltr">{location.contact_phone ?? t.common.none}</div>
           </div>
-        )}
-      </div>
+        </div>
 
-      <div className="panel-block">
-        <div className="section-label">{t.locations.lastFeedback}</div>
-        {stat.lastFeedback ? (
-          <>
-            <p className="panel-quote">{stat.lastFeedback.content}</p>
-            <div className="panel-quote-when">
-              <Stars value={stat.lastFeedback.rating} />{" "}
-              {formatRelative(stat.lastFeedback.feedback_at)}
+        <div className="divider" />
+
+        <div className="panel-block">
+          <span className="section-label">{t.locations.stock}</span>
+          {stat.stock.length === 0 ? (
+            <p className="muted small">{t.locations.stockEmpty}</p>
+          ) : (
+            <div className="stock-list">
+              {stat.stock.map((row) => (
+                <div className="stock-row" key={row.label}>
+                  <span>{row.label}</span>
+                  <span className="count num">{row.count}</span>
+                </div>
+              ))}
             </div>
-          </>
-        ) : (
-          <p className="muted small">{t.locations.lastFeedbackEmpty}</p>
-        )}
-      </div>
+          )}
+        </div>
 
-      <Link className="btn btn-secondary" to={`/locations/${location.id}`}>
-        {t.locations.openDetail}
-      </Link>
+        <div className="divider" />
+
+        <div className="panel-block">
+          <span className="section-label">{t.locations.lastFeedback}</span>
+          {stat.lastFeedback ? (
+            <div className="inset">
+              <div className="inset-head">
+                <Stars value={stat.lastFeedback.rating} />
+                <div className="spacer" />
+                <time dateTime={stat.lastFeedback.feedback_at}>
+                  {formatRelative(stat.lastFeedback.feedback_at)}
+                </time>
+              </div>
+              <p>{stat.lastFeedback.content}</p>
+            </div>
+          ) : (
+            <p className="muted small">{t.locations.lastFeedbackEmpty}</p>
+          )}
+        </div>
+
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onAddContact}>
+          + {t.contacts.add}
+        </button>
+
+        <Link className="btn btn-secondary btn-sm" to={`/locations/${location.id}`}>
+          {t.locations.openDetail}
+        </Link>
+      </div>
     </aside>
   );
 }

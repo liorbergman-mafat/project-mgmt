@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useAsync } from "../hooks";
 import { itemLabel, locationLabel, t } from "../i18n";
 import { useShell } from "../shellData";
 import { ItemFormModal } from "../components/ItemFormModal";
+import { ChevronStart, EquipmentIcon } from "../components/icons";
 import {
+  ConfirmModal,
   EmptyState,
   ErrorBanner,
   Field,
@@ -32,14 +34,20 @@ function blockedByItems(message: string): boolean {
   return message.includes("פריטים");
 }
 
+/** What is queued for deletion, and which endpoint takes it. */
+type Pending =
+  | { kind: "type"; row: ItemType }
+  | { kind: "model"; row: ItemModel }
+  | { kind: "item"; row: Item };
+
 /**
- * Equipment — three levels deep: every type, its models, and the actual
- * pieces of equipment registered under each model. A standalone page (not a
- * Settings tab) since equipment is managed on its own, not tucked away.
+ * Equipment — the catalogue on one side, the actual pieces of equipment on
+ * the other. Picking a category on the left fills the table on the right with
+ * every item registered under it, models and un-modelled alike.
  *
  * Types and models share this page because a model means nothing without its
- * type, and the equipment itself belongs here because a serial number means
- * nothing without its model. Expanding a row is how you reach the level below.
+ * type; the items sit beside them because a serial number means nothing
+ * without its model.
  */
 export default function EquipmentPage() {
   const shell = useShell();
@@ -52,26 +60,22 @@ export default function EquipmentPage() {
   const [editingModel, setEditingModel] = useState<ItemModel | null>(null);
   /** Holds the type a new model is being added to — the form opens with it preselected. */
   const [addingModelTo, setAddingModelTo] = useState<string | null>(null);
-  /**
-   * Holds what new equipment is being preselected into — a category (+ an
-   * optional model) from the categories tree, or a project from the projects
-   * list below it. The form opens with whichever of these is given filled in.
-   */
+  /** Holds the category (+ optional model) new equipment is being preselected into. */
   const [addingItemTo, setAddingItemTo] = useState<{
     typeId?: string;
     modelId?: string;
-    projectId?: string;
   } | null>(null);
-  /** Set by the card-foot button, which adds equipment without preselecting anything. */
+  /** Set by the header button, which adds equipment without preselecting anything. */
   const [creatingItem, setCreatingItem] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
+  const [pending, setPending] = useState<Pending | null>(null);
   const [actionError, setActionError] = useState<DeleteFailure | null>(null);
   const [viewingItems, setViewingItems] = useState<DeleteFailure | null>(null);
-  /** Categories are an admin concern, not how this page is browsed — collapsed by default. */
-  const [showCategories, setShowCategories] = useState(false);
 
   const typeRows = types.data ?? [];
+  const itemRows = items.data ?? [];
+
   const modelsByType = useMemo(() => {
     const buckets = new Map<string, ItemModel[]>();
     for (const model of models.data ?? []) {
@@ -82,105 +86,74 @@ export default function EquipmentPage() {
     return buckets;
   }, [models.data]);
 
-  const itemsByModel = useMemo(() => {
+  const itemsByType = useMemo(() => {
     const buckets = new Map<string, Item[]>();
-    for (const item of items.data ?? []) {
-      if (!item.model_id) continue;
-      const bucket = buckets.get(item.model_id);
-      if (bucket) bucket.push(item);
-      else buckets.set(item.model_id, [item]);
-    }
-    return buckets;
-  }, [items.data]);
-
-  // Equipment linked straight to a category, with no model picked.
-  const unmodeledItemsByType = useMemo(() => {
-    const buckets = new Map<string, Item[]>();
-    for (const item of items.data ?? []) {
-      if (item.model_id) continue;
+    for (const item of itemRows) {
       const bucket = buckets.get(item.type_id);
       if (bucket) bucket.push(item);
       else buckets.set(item.type_id, [item]);
     }
     return buckets;
-  }, [items.data]);
+  }, [itemRows]);
 
-  const projectRows = shell.projects.data ?? [];
+  const itemsByModel = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of itemRows) {
+      if (item.model_id) counts.set(item.model_id, (counts.get(item.model_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [itemRows]);
+
   const projectsById = useMemo(
-    () => new Map(projectRows.map((p) => [p.id, p])),
-    [projectRows],
+    () => new Map((shell.projects.data ?? []).map((p) => [p.id, p])),
+    [shell.projects.data],
   );
 
-  const itemsByProject = useMemo(() => {
-    const buckets = new Map<string, Item[]>();
-    for (const item of items.data ?? []) {
-      const bucket = buckets.get(item.project_id);
-      if (bucket) bucket.push(item);
-      else buckets.set(item.project_id, [item]);
-    }
-    return buckets;
-  }, [items.data]);
+  // The selected category drives the table beside the list. It falls back to
+  // the first category whenever the current pick disappears (deleted, or the
+  // list has not landed yet).
+  const [typeId, setTypeId] = useState<string | null>(null);
+  const selectedType =
+    typeRows.find((row) => row.id === typeId) ?? typeRows[0] ?? null;
+  const selectedItems = selectedType ? (itemsByType.get(selectedType.id) ?? []) : [];
 
-  /** One set for every level — type, model and project ids never collide. */
-  const [open, setOpen] = useState<Set<string>>(new Set());
-  function toggleOpen(id: string) {
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
-  }
-
-  async function removeType(row: ItemType) {
-    if (!confirm(t.common.confirmDelete)) return;
+  async function runDelete(target: Pending) {
     setActionError(null);
     try {
-      await api.itemTypes.remove(row.id);
-      types.reload();
-      models.reload();
+      if (target.kind === "type") {
+        await api.itemTypes.remove(target.row.id);
+        types.reload();
+        models.reload();
+      } else if (target.kind === "model") {
+        await api.itemModels.remove(target.row.id);
+        models.reload();
+      } else {
+        await api.items.remove(target.row.id);
+        // Deleting equipment takes its loans with it, so this also moves the
+        // nav counts.
+        shell.reloadAll();
+      }
+      setPending(null);
     } catch (err) {
-      setActionError({ id: row.id, name: row.name, message: (err as Error).message, scope: "type" });
-    }
-  }
-
-  async function removeModel(row: ItemModel) {
-    if (!confirm(t.common.confirmDelete)) return;
-    setActionError(null);
-    try {
-      await api.itemModels.remove(row.id);
-      models.reload();
-    } catch (err) {
+      setPending(null);
       setActionError({
-        id: row.id,
-        name: row.name,
+        id: target.row.id,
+        name:
+          target.kind === "item"
+            ? (target.row.serial_id ?? t.equipment.noSerial)
+            : target.row.name,
         message: (err as Error).message,
-        scope: "model",
+        scope: target.kind === "item" ? undefined : target.kind,
       });
     }
   }
 
-  /** A saved model may have been moved to another type — open both ends so it stays in view. */
-  function afterModelSaved(typeId: string) {
+  /** A saved model may have been moved to another type — follow it there. */
+  function afterModelSaved(savedTypeId: string) {
     setAddingModelTo(null);
     setEditingModel(null);
-    setOpen((prev) => new Set(prev).add(typeId));
+    setTypeId(savedTypeId);
     models.reload();
-  }
-
-  async function removeItem(item: Item) {
-    if (!confirm(t.common.confirmDelete)) return;
-    setActionError(null);
-    try {
-      await api.items.remove(item.id);
-      // Deleting equipment takes its loans with it, so this also moves the nav bar counts.
-      shell.reloadAll();
-    } catch (err) {
-      setActionError({
-        id: item.id,
-        name: item.serial_id ?? t.equipment.noSerial,
-        message: (err as Error).message,
-      });
-    }
   }
 
   function closeItemForm() {
@@ -189,6 +162,8 @@ export default function EquipmentPage() {
     setEditingItem(null);
   }
 
+  const loading = types.loading || models.loading || items.loading;
+
   return (
     <>
       <header className="page-header">
@@ -196,224 +171,190 @@ export default function EquipmentPage() {
           <h1>{t.equipmentPage.title}</h1>
           <p className="subtitle">{t.equipmentPage.subtitle}</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setCreatingItem(true)}>
-          + {t.equipment.new}
-        </button>
+        <div className="header-actions">
+          <button className="btn btn-primary" onClick={() => setCreatingItem(true)}>
+            + {t.equipment.new}
+          </button>
+        </div>
       </header>
 
       {types.error && <ErrorBanner error={types.error} onRetry={types.reload} />}
       {models.error && <ErrorBanner error={models.error} onRetry={models.reload} />}
       {items.error && <ErrorBanner error={items.error} onRetry={items.reload} />}
       <DeleteError failure={actionError} onShowItems={setViewingItems} />
-      {(types.loading || models.loading || items.loading) && <Spinner />}
+      {loading && <Spinner />}
 
-      <div className="list-card">
-        <div className="list-card-head">
-          <span>{t.equipmentPage.projectsTitle}</span>
-          <span className="count num">{t.equipmentPage.entries(projectRows.length)}</span>
-        </div>
+      {!loading && typeRows.length === 0 && (
+        <EmptyState
+          message={t.itemTypes.empty}
+          icon={<EquipmentIcon size={19} />}
+          action={
+            <button className="btn btn-secondary btn-sm" onClick={() => setCreatingType(true)}>
+              + {t.itemTypes.new}
+            </button>
+          }
+        />
+      )}
 
-        {projectRows.length === 0 && <EmptyState message={t.equipmentPage.noProjectsYet} />}
-
-        {projectRows.map((project) => {
-          const projectItems = itemsByProject.get(project.id) ?? [];
-          const expanded = open.has(project.id);
-
-          return (
-            <div key={project.id}>
-              <div className="group-head">
-                <button
-                  type="button"
-                  className="group-toggle"
-                  aria-expanded={expanded}
-                  onClick={() => toggleOpen(project.id)}
-                >
-                  <span className="chevron" aria-hidden="true">
-                    {expanded ? "▾" : "▸"}
-                  </span>
-                  <span>{project.name}</span>
-                  <span className="group-count">{t.equipment.unitCount(projectItems.length)}</span>
-                </button>
-                {project.status !== "active" && (
-                  <div style={{ paddingInlineEnd: 18 }}>
-                    <Pill tone="grey">{t.projects.statusLabels[project.status]}</Pill>
-                  </div>
-                )}
-              </div>
-
-              {expanded && (
-                <>
-                  {projectItems.length === 0 && (
-                    <p className="group-empty">{t.equipmentPage.emptyForProject}</p>
-                  )}
-                  {projectItems.map((item) => (
-                    <ListRow
-                      key={item.id}
-                      deep
-                      name={itemLabel(item)}
-                      meta={item.serial_id ?? undefined}
-                      extra={<ItemStatusLocation item={item} />}
-                      onEdit={() => setEditingItem(item)}
-                      onDelete={() => removeItem(item)}
-                    />
-                  ))}
-                  {project.status !== "archived" && (
-                    <div className="group-foot">
-                      <button
-                        className="link-btn"
-                        onClick={() => setAddingItemTo({ projectId: project.id })}
-                      >
-                        + {t.equipmentPage.addItemToProject}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+      {typeRows.length > 0 && (
+        <div className="split split-equipment">
+          {/* --- The catalogue: every category, its models under it. --- */}
+          <div className="card cat-card">
+            <div className="card-head">
+              <span className="title quiet">{t.equipmentPage.listTitle}</span>
+              <span className="count num">{t.common.records(typeRows.length)}</span>
             </div>
-          );
-        })}
-      </div>
 
-      <button type="button" className="link-btn" onClick={() => setShowCategories((v) => !v)}>
-        {showCategories ? t.equipmentPage.hideCategories : t.equipmentPage.manageCategories}
-      </button>
+            <div className="cat-body">
+              {typeRows.map((type) => {
+                const typeModels = modelsByType.get(type.id) ?? [];
+                const on = selectedType?.id === type.id;
 
-      {showCategories && (
-        <ListLayout
-          count={typeRows.length}
-          addLabel={t.itemTypes.new}
-          onAdd={() => setCreatingType(true)}
-        >
-          {typeRows.length === 0 && !types.loading && <EmptyState message={t.itemTypes.empty} />}
-
-          {typeRows.map((type) => {
-            const typeModels = modelsByType.get(type.id) ?? [];
-            const unmodeledItems = unmodeledItemsByType.get(type.id) ?? [];
-            const expanded = open.has(type.id);
-  
-            return (
-              <div key={type.id}>
-                <div className="group-head">
-                  <button
-                    type="button"
-                    className="group-toggle"
-                    aria-expanded={expanded}
-                    onClick={() => toggleOpen(type.id)}
-                  >
-                    <span className="chevron" aria-hidden="true">
-                      {expanded ? "▾" : "▸"}
-                    </span>
-                    <span>{type.name}</span>
-                    <span className="group-count">{t.itemTypes.modelCount(typeModels.length)}</span>
-                  </button>
-                  <div className="row-actions">
-                    <button className="link-btn" onClick={() => setEditingType(type)}>
-                      {t.common.edit}
+                return (
+                  <div className="cat-group" key={type.id}>
+                    <button
+                      type="button"
+                      className={`cat-row${on ? " on" : ""}`}
+                      aria-pressed={on}
+                      onClick={() => setTypeId(type.id)}
+                    >
+                      <span className="chevron" aria-hidden="true">
+                        <ChevronStart />
+                      </span>
+                      <span className="name">{type.name}</span>
+                      <span className="count num">
+                        {(itemsByType.get(type.id) ?? []).length}
+                      </span>
                     </button>
-                    <button className="link-btn danger" onClick={() => removeType(type)}>
-                      {t.common.delete}
-                    </button>
-                  </div>
-                </div>
-  
-                {expanded && (
-                  <>
-                    {unmodeledItems.map((item) => (
-                      <ListRow
-                        key={item.id}
-                        deep
-                        name={item.serial_id ?? t.equipment.noSerial}
-                        meta={projectsById.get(item.project_id)?.name}
-                        extra={<ItemStatusLocation item={item} />}
-                        onEdit={() => setEditingItem(item)}
-                        onDelete={() => removeItem(item)}
-                      />
-                    ))}
-  
-                    {typeModels.length === 0 && unmodeledItems.length === 0 && (
-                      <p className="group-empty">{t.itemModels.emptyForType}</p>
-                    )}
-                    {typeModels.map((model) => {
-                      const modelItems = itemsByModel.get(model.id) ?? [];
-                      const modelOpen = open.has(model.id);
-  
-                      return (
-                        <div key={model.id}>
-                          <div className="group-head group-head-nested">
+
+                    {/* The models of the open category only — the whole tree
+                        at once is unreadable once there are more than a few. */}
+                    {on && (
+                      <div className="cat-models">
+                        {typeModels.length === 0 && (
+                          <p className="muted small">{t.itemModels.emptyForType}</p>
+                        )}
+                        {typeModels.map((model) => (
+                          <div className="model-row" key={model.id}>
+                            <span className="dot" aria-hidden="true" />
+                            <span className="name">{model.name}</span>
+                            <span className="count num">{itemsByModel.get(model.id) ?? 0}</span>
                             <button
-                              type="button"
-                              className="group-toggle"
-                              aria-expanded={modelOpen}
-                              onClick={() => toggleOpen(model.id)}
+                              className="link-btn"
+                              onClick={() => setEditingModel(model)}
+                              aria-label={`${t.common.edit} ${model.name}`}
                             >
-                              <span className="chevron" aria-hidden="true">
-                                {modelOpen ? "▾" : "▸"}
-                              </span>
-                              <span>{model.name}</span>
-                              <span className="group-count">
-                                {t.equipment.unitCount(modelItems.length)}
-                              </span>
+                              {t.common.edit}
                             </button>
-                            <div className="row-actions">
-                              <button className="link-btn" onClick={() => setEditingModel(model)}>
-                                {t.common.edit}
-                              </button>
-                              <button className="link-btn danger" onClick={() => removeModel(model)}>
-                                {t.common.delete}
-                              </button>
-                            </div>
+                            <button
+                              className="link-btn danger"
+                              onClick={() => setPending({ kind: "model", row: model })}
+                              aria-label={`${t.common.delete} ${model.name}`}
+                            >
+                              {t.common.delete}
+                            </button>
                           </div>
-  
-                          {modelOpen && (
-                            <>
-                              {modelItems.length === 0 && (
-                                <p className="group-empty group-empty-deep">
-                                  {t.equipment.emptyForModel}
-                                </p>
-                              )}
-                              {modelItems.map((item) => (
-                                <ListRow
-                                  key={item.id}
-                                  deep
-                                  name={item.serial_id ?? t.equipment.noSerial}
-                                  meta={projectsById.get(item.project_id)?.name}
-                                  extra={<ItemStatusLocation item={item} />}
-                                  onEdit={() => setEditingItem(item)}
-                                  onDelete={() => removeItem(item)}
-                                />
-                              ))}
-                              <div className="group-foot group-foot-deep">
-                                <button
-                                  className="link-btn"
-                                  onClick={() =>
-                                    setAddingItemTo({ typeId: type.id, modelId: model.id })
-                                  }
-                                >
-                                  + {t.equipment.addToModel}
-                                </button>
-                              </div>
-                            </>
-                          )}
+                        ))}
+
+                        <div className="cat-actions">
+                          <button className="link-btn" onClick={() => setAddingModelTo(type.id)}>
+                            + {t.itemModels.addToType}
+                          </button>
+                          <button
+                            className="link-btn"
+                            onClick={() => setAddingItemTo({ typeId: type.id })}
+                          >
+                            + {t.equipmentPage.addItemToType}
+                          </button>
+                          <button className="link-btn" onClick={() => setEditingType(type)}>
+                            {t.common.edit}
+                          </button>
+                          <button
+                            className="link-btn danger"
+                            onClick={() => setPending({ kind: "type", row: type })}
+                          >
+                            {t.common.delete}
+                          </button>
                         </div>
-                      );
-                    })}
-                    <div className="group-foot row-actions">
-                      <button className="link-btn" onClick={() => setAddingModelTo(type.id)}>
-                        + {t.itemModels.addToType}
-                      </button>
-                      <button
-                        className="link-btn"
-                        onClick={() => setAddingItemTo({ typeId: type.id })}
-                      >
-                        + {t.equipmentPage.addItemToType}
-                      </button>
-                    </div>
-                  </>
-                )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              <button className="link-btn" onClick={() => setCreatingType(true)}>
+                + {t.itemTypes.new}
+              </button>
+            </div>
+
+            <p className="card-foot">{t.equipmentPage.note}</p>
+          </div>
+
+          {/* --- What is actually registered under the open category. --- */}
+          <div className="table-card main-pane">
+            <div className="card-head">
+              <span className="title">
+                {t.equipmentPage.linkedItemsTitle(selectedType?.name ?? t.common.none)}
+              </span>
+              <span className="count num">{t.equipment.unitCount(selectedItems.length)}</span>
+            </div>
+
+            {selectedItems.length === 0 ? (
+              <div className="card-body-empty">
+                <p className="muted small">{t.equipmentPage.linkedItemsEmpty}</p>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setAddingItemTo({ typeId: selectedType?.id })}
+                >
+                  + {t.equipment.new}
+                </button>
               </div>
-            );
-          })}
-        </ListLayout>
+            ) : (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t.projectItems.typeAndModel}</th>
+                      <th>{t.projectItems.serialId}</th>
+                      <th>{t.units.project}</th>
+                      <th>{t.projectItems.status}</th>
+                      <th>{t.projectItems.location}</th>
+                      <th className="shrink" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedItems.map((item) => (
+                      <tr key={item.id}>
+                        <td className="strong">{itemLabel(item)}</td>
+                        <td className="ltr muted">{item.serial_id ?? t.common.none}</td>
+                        <td>{projectsById.get(item.project_id)?.name ?? t.common.none}</td>
+                        <td>
+                          <Pill tone={ITEM_STATUS_TONE[item.status?.name ?? ""] ?? "grey"}>
+                            {item.status?.name ?? t.common.none}
+                          </Pill>
+                        </td>
+                        <td>{locationLabel(item.location)}</td>
+                        <td className="actions">
+                          <div className="row-actions">
+                            <button className="link-btn" onClick={() => setEditingItem(item)}>
+                              {t.common.edit}
+                            </button>
+                            <button
+                              className="link-btn danger"
+                              onClick={() => setPending({ kind: "item", row: item })}
+                            >
+                              {t.common.delete}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {(creatingType || editingType) && (
@@ -450,7 +391,6 @@ export default function EquipmentPage() {
           item={editingItem}
           defaultTypeId={addingItemTo?.typeId}
           defaultModelId={addingItemTo?.modelId}
-          defaultProjectId={addingItemTo?.projectId}
           onClose={closeItemForm}
           onSaved={() => {
             closeItemForm();
@@ -472,6 +412,15 @@ export default function EquipmentPage() {
         />
       )}
 
+      {pending && (
+        <ConfirmModal
+          title={t.common.delete}
+          message={t.common.confirmDelete}
+          onClose={() => setPending(null)}
+          onConfirm={() => runDelete(pending)}
+        />
+      )}
+
       {viewingItems && (
         <LinkedItemsModal
           title={t.equipmentPage.linkedItemsTitle(viewingItems.name)}
@@ -484,96 +433,6 @@ export default function EquipmentPage() {
         />
       )}
     </>
-  );
-}
-
-/* ========================================================================
- * Shared chrome: the list card on the left, the explanatory note on the right.
- * ===================================================================== */
-function ListLayout({
-  count,
-  addLabel,
-  onAdd,
-  children,
-  extraAction,
-}: {
-  count: number;
-  addLabel: string;
-  onAdd: () => void;
-  children: ReactNode;
-  /** A second button in the card foot, beside the "add" one. */
-  extraAction?: ReactNode;
-}) {
-  return (
-    <div className="split split-settings">
-      <div className="list-card">
-        <div className="list-card-head">
-          <span>{t.equipmentPage.listTitle}</span>
-          <span className="count num">{t.equipmentPage.entries(count)}</span>
-        </div>
-
-        {children}
-
-        <div className="list-card-foot">
-          <button className="btn btn-dashed" onClick={onAdd}>
-            + {addLabel}
-          </button>
-          {extraAction}
-        </div>
-      </div>
-
-      <p className="note-card">{t.equipmentPage.note}</p>
-    </div>
-  );
-}
-
-/** The status pill + location shown after an item's name in the equipment lists below. */
-function ItemStatusLocation({ item }: { item: Item }) {
-  return (
-    <span className="list-row-meta">
-      {" · "}
-      <Pill tone={ITEM_STATUS_TONE[item.status?.name ?? ""] ?? "grey"}>
-        {item.status?.name ?? t.common.none}
-      </Pill>
-      {" · "}
-      {locationLabel(item.location)}
-    </span>
-  );
-}
-
-function ListRow({
-  name,
-  meta,
-  extra,
-  deep,
-  onEdit,
-  onDelete,
-}: {
-  name: string;
-  meta?: string;
-  /** Extra info after the meta — used for an item's status pill + location. */
-  extra?: ReactNode;
-  /** Indented, for an item sitting under its model. */
-  deep?: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className={`list-row${deep ? " list-row-deep" : ""}`}>
-      <div>
-        <span className="list-row-name">{name}</span>
-        {meta && <span className="list-row-meta"> · {meta}</span>}
-        {extra}
-      </div>
-      <div className="row-actions">
-        <button className="link-btn" onClick={onEdit}>
-          {t.common.edit}
-        </button>
-        <button className="link-btn danger" onClick={onDelete}>
-          {t.common.delete}
-        </button>
-      </div>
-    </div>
   );
 }
 

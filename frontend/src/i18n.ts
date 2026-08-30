@@ -25,10 +25,18 @@ export const t = {
     back: "חזרה",
     retry: "נסה שוב",
     updated: "עודכן",
+    open: "פתח",
+    /** How many rows a list card holds, shown in its header strip. */
+    records: (n: number) => (n === 1 ? "רשומה אחת" : `${n} רשומות`),
+    /** Split around the asterisk, so the marker itself can be coloured. */
+    requiredNote: "שדות המסומנים ב־",
+    requiredNoteTail: "הם שדות חובה",
   },
 
   shell: {
     signOut: "יציאה",
+    /** The parent organisation's mark in the far corner of the top bar. */
+    parentOrg: "מנחת AI&Autonomy",
   },
 
   auth: {
@@ -50,8 +58,10 @@ export const t = {
     name: "שם הפרויקט",
     description: "תיאור",
     status: "סטטוס",
-    empty: "אין עדיין פרויקטים. צור את הראשון כדי להתחיל.",
+    empty: "אין עדיין פרויקטים.",
+    emptyHint: "צור את הראשון כדי להתחיל.",
     emptyArchived: "אין פרויקטים בארכיון.",
+    emptyArchivedHint: "פרויקטים שהועברו לארכיון יופיעו כאן.",
     archive: "העבר לארכיון",
     unarchive: "שחזר מהארכיון",
     deleteProject: "מחק פרויקט",
@@ -72,6 +82,20 @@ export const t = {
       /** Longer forms, for the project-detail stat strip. */
       items: "פריטים בפרויקט",
       openLoans: "השאלות פתוחות",
+    },
+    /** The four tiles above the projects table, folded from the shell lists. */
+    summary: {
+      active: "פרויקטים פעילים",
+      items: "פריטים בפרויקטים",
+      openLoans: "השאלות פתוחות",
+      monthFeedback: "משובים החודש",
+    },
+    /** The projects table's own column headings, shorter than the tile labels. */
+    columns: {
+      items: "פריטים",
+      loans: "השאלות",
+      open: "פתוחות",
+      feedback: "משובים",
     },
   },
 
@@ -102,6 +126,8 @@ export const t = {
     notes: "הערות",
     signer: "איש קשר לחתימה",
     chooseSigner: "בחר איש קשר",
+    signerHint: "מתוך אנשי הקשר שרשומים ליחידה הנבחרת",
+    reloanNote: "פריט שנמצא בהשאלה פתוחה אינו ניתן להשאלה חוזרת עד להחזרתו.",
     selectLocationFirst: "בחר מיקום תחילה",
     noContactsForLocation: "אין אנשי קשר רשומים ליחידה זו.",
     addContact: "הוסף איש קשר",
@@ -139,6 +165,9 @@ export const t = {
       unrated: "ללא דירוג",
     },
     monthCount: "משובים החודש",
+    /** The rail's second card: mean score per equipment category. */
+    byCategory: "דירוג ממוצע לפי קטגוריה",
+    byCategoryEmpty: "אין עדיין משוב המשויך להשאלה, ולכן אין פילוח לפי קטגוריה.",
     monthScope: (locations: number) =>
       locations === 1 ? "מיחידה אחת" : `מ־${locations} יחידות שונות`,
   },
@@ -158,14 +187,6 @@ export const t = {
     /** A model is optional — equipment can be linked straight to a category with no model. */
     addItemToType: "ציוד ישירות לקטגוריה זו",
     noModel: "ללא דגם",
-    /** The second browse-and-add group on the page, alongside categories: every project, its equipment. */
-    projectsTitle: "פרויקטים",
-    noProjectsYet: "אין עדיין פרויקטים — צור פרויקט בעמוד ״פרויקטים״ תחילה.",
-    addItemToProject: "ציוד לפרויקט זה",
-    emptyForProject: "אין עדיין ציוד רשום לפרויקט זה.",
-    /** The categories tree is tucked away behind this toggle — the page itself is project-first. */
-    manageCategories: "ניהול קטגוריות ציוד",
-    hideCategories: "הסתר ניהול קטגוריות",
   },
 
   itemTypes: {
@@ -194,8 +215,6 @@ export const t = {
     project: "פרויקט",
     noSerial: "ללא מספר סידורי",
     unitCount: (n: number) => (n === 1 ? "פריט אחד" : `${n} פריטים`),
-    emptyForModel: "אין ציוד רשום לדגם זה.",
-    addToModel: "ציוד מדגם זה",
     noProjects: "אין עדיין פרויקטים — צור פרויקט תחילה.",
     /** Says where status and location come from, since the add form does not ask. */
     defaultsNote: "ציוד חדש נרשם כנמצא במחסן. הסטטוס והמיקום ניתנים לשינוי בעריכת הפריט.",
@@ -226,10 +245,19 @@ export const t = {
     notes: "הערות",
     new: "מיקום חדש",
     edit: "עריכת מיקום",
+    deleteConfirmTitle: "מחיקת מיקום",
+    deleteConfirmMessage: (name: string) =>
+      `למחוק את המיקום "${name}"? הפעולה אינה הפיכה, ותיחסם אם רשומים בו פריטים או השאלות.`,
     empty: "אין עדיין מיקומים.",
     emptyDirectory: "אין עדיין מיקומים. צור את הראשון כדי להתחיל.",
     noMatches: "אין מיקומים התואמים לסינון.",
-    battalionCount: (n: number) => (n === 1 ? "גדוד אחד" : `${n} גדודים`),
+    battalionCount: (n: number) => (n === 1 ? "יחידה אחת" : `${n} יחידות`),
+    /** The grouped table's header strip, and the tally beside it. */
+    grouped: "מקובץ לפי חטיבה",
+    groupedCount: (units: number, groups: number) => `${units} יחידות ב־${groups} חטיבות`,
+    /** The panel's own tally line, under the affiliation. */
+    panelCounts: (items: number, open: number) =>
+      `${items} פריטים כאן · ${open} השאלות פתוחות`,
   },
 
   /** The one-location screen; "unit" is what a location of kind יחידה is called. */
@@ -276,6 +304,13 @@ export function formatDate(value: string | null | undefined): string {
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return t.common.none;
   return dateTimeFormatter.format(new Date(value));
+}
+
+/** Whether a timestamp falls in the current calendar month, in local time. */
+export function isThisMonth(iso: string): boolean {
+  const date = new Date(iso);
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
 }
 
 /** "לפני 3 ימים" — used on feedback, where recency matters more than the date. */

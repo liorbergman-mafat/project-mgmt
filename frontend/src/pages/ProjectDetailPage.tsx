@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAsync } from "../hooks";
@@ -14,6 +14,7 @@ import {
 import { useShell } from "../shellData";
 import { ContactFormModal } from "../components/ContactFormModal";
 import { ItemFormModal } from "../components/ItemFormModal";
+import { BackIcon, EquipmentIcon, FeedbackIcon } from "../components/icons";
 import {
   ConfirmModal,
   EmptyState,
@@ -21,19 +22,27 @@ import {
   Field,
   FormActions,
   ITEM_STATUS_TONE,
+  InfoNote,
   Modal,
   Pill,
   Spinner,
   Stars,
   Tabs,
+  edgeColour,
 } from "../components/ui";
 import type { Tone } from "../components/ui";
 import type { Contact, Feedback, Item, Loan, Location, ProjectStatus } from "../types";
 
 const PROJECT_TONE: Record<ProjectStatus, Tone> = {
   active: "green",
-  completed: "blue",
+  completed: "teal",
   archived: "grey",
+};
+
+const LOAN_TONE: Record<Loan["status"], Tone> = {
+  loaned: "teal",
+  returned: "grey",
+  lost: "red",
 };
 
 type Tab = "items" | "loans" | "feedback";
@@ -83,7 +92,8 @@ export default function ProjectDetailPage() {
   return (
     <>
       <Link to="/projects" className="back-link">
-        ← {t.common.back} {t.nav.projects}
+        <BackIcon />
+        {t.common.back} {t.nav.projects}
       </Link>
 
       <header className="page-header">
@@ -116,9 +126,9 @@ export default function ProjectDetailPage() {
         </div>
       </header>
 
-      <div className="stat-strip">
+      <div className="stat-strip three">
         <StatCard label={t.projects.stats.items} value={items.length} />
-        <StatCard label={t.projects.stats.openLoans} value={openLoans} />
+        <StatCard label={t.projects.stats.openLoans} value={openLoans} teal />
         <StatCard label={t.projects.stats.feedback} value={feedback.length} />
       </div>
 
@@ -134,14 +144,22 @@ export default function ProjectDetailPage() {
 
       {tab === "items" &&
         (items.length === 0 ? (
-          <EmptyState message={t.projectItems.empty} />
+          <EmptyState
+            message={t.projectItems.empty}
+            icon={<EquipmentIcon size={19} />}
+            action={
+              <button className="btn btn-secondary btn-sm" onClick={() => setAddingItem(true)}>
+                + {t.projectItems.new}
+              </button>
+            }
+          />
         ) : (
           <ItemsTable items={items} onEdit={setEditingItem} onChanged={refresh} />
         ))}
 
       {tab === "loans" &&
         (loans.length === 0 ? (
-          <EmptyState message={t.loans.empty} />
+          <EmptyState message={t.loans.empty} icon={<EquipmentIcon size={19} />} />
         ) : (
           <LoansTable loans={loans} onChanged={refresh} />
         ))}
@@ -149,15 +167,17 @@ export default function ProjectDetailPage() {
       {tab === "feedback" && (
         <>
           <div className="pane-header">
-            <span className="section-label" style={{ margin: 0 }}>
-              {t.feedback.title}
-            </span>
-            <button className="btn btn-secondary" onClick={() => setAddingFeedback(true)}>
+            <span className="section-label">{t.feedback.title}</span>
+            <div className="spacer" />
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setAddingFeedback(true)}
+            >
               + {t.feedback.new}
             </button>
           </div>
           {feedback.length === 0 ? (
-            <EmptyState message={t.feedback.empty} />
+            <EmptyState message={t.feedback.empty} icon={<FeedbackIcon size={19} />} />
           ) : (
             <div className="feedback-list narrow">
               {feedback.map((entry) => (
@@ -223,11 +243,11 @@ export default function ProjectDetailPage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value, teal }: { label: string; value: number; teal?: boolean }) {
   return (
     <div className="stat-card">
       <div className="label">{label}</div>
-      <div className="value num">{value}</div>
+      <div className={`value num${teal ? " teal" : ""}`}>{value}</div>
     </div>
   );
 }
@@ -245,17 +265,19 @@ function ItemsTable({
   onChanged: () => void;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Item | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function remove(id: string) {
-    if (!confirm(t.common.confirmDelete)) return;
-    setBusyId(id);
+  async function remove(item: Item) {
+    setBusyId(item.id);
     setError(null);
     try {
-      await api.items.remove(id);
+      await api.items.remove(item.id);
+      setDeleting(null);
       onChanged();
     } catch (err) {
       setError((err as Error).message);
+      setDeleting(null);
     } finally {
       setBusyId(null);
     }
@@ -274,16 +296,14 @@ function ItemsTable({
                 <th>{t.projectItems.status}</th>
                 <th>{t.projectItems.location}</th>
                 <th>{t.common.updated}</th>
-                <th />
+                <th className="shrink" />
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
                 <tr key={item.id}>
                   <td className="strong">{itemLabel(item)}</td>
-                  <td className="num" style={{ color: "var(--slate)" }}>
-                    {item.serial_id ?? t.common.none}
-                  </td>
+                  <td className="ltr muted">{item.serial_id ?? t.common.none}</td>
                   <td>
                     <Pill tone={ITEM_STATUS_TONE[item.status?.name ?? ""] ?? "grey"}>
                       {item.status?.name ?? t.common.none}
@@ -292,14 +312,14 @@ function ItemsTable({
                   <td>{locationLabel(item.location)}</td>
                   <td className="meta">{formatRelative(item.updated_at)}</td>
                   <td className="actions">
-                    <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                    <div className="row-actions">
                       <button className="link-btn" onClick={() => onEdit(item)}>
                         {t.common.edit}
                       </button>
                       <button
                         className="link-btn danger"
                         disabled={busyId === item.id}
-                        onClick={() => remove(item.id)}
+                        onClick={() => setDeleting(item)}
                       >
                         {t.common.delete}
                       </button>
@@ -311,6 +331,15 @@ function ItemsTable({
           </table>
         </div>
       </div>
+
+      {deleting && (
+        <ConfirmModal
+          title={t.common.delete}
+          message={t.common.confirmDelete}
+          onClose={() => setDeleting(null)}
+          onConfirm={() => remove(deleting)}
+        />
+      )}
     </>
   );
 }
@@ -320,6 +349,7 @@ function ItemsTable({
  * ===================================================================== */
 function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void }) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Loan | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function run(id: string, action: () => Promise<unknown>) {
@@ -327,9 +357,11 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
     setError(null);
     try {
       await action();
+      setDeleting(null);
       onChanged();
     } catch (err) {
       setError((err as Error).message);
+      setDeleting(null);
     } finally {
       setBusyId(null);
     }
@@ -349,39 +381,39 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
                 <th>{t.loans.loanedAt}</th>
                 <th>{t.loans.signer}</th>
                 <th>{t.loans.status}</th>
-                <th />
+                <th className="shrink" />
               </tr>
             </thead>
             <tbody>
               {loans.map((loan) => (
                 <tr key={loan.id}>
-                  <td className="strong">
-                    {itemLabel(loan.item)}
+                  <td>
+                    <span className="strong">{itemLabel(loan.item)}</span>
                     {loan.item?.serial_id && (
                       <span className="dim num"> · {loan.item.serial_id}</span>
                     )}
-                    {loan.notes && <div className="muted small">{loan.notes}</div>}
+                    {loan.notes && <div className="sub">{loan.notes}</div>}
                   </td>
                   <td>{locationLabel(loan.location)}</td>
                   <td className="num">{loan.quantity}</td>
-                  <td className="num" style={{ color: "var(--slate)" }}>
+                  <td className="num">
                     {formatDate(loan.loaned_at)}
                     {loan.returned_at && (
-                      <div className="dim small num">
+                      <div className="sub">
                         {t.loans.returnedAt}: {formatDate(loan.returned_at)}
                       </div>
                     )}
                   </td>
                   <td>
                     {loan.signer?.full_name ?? t.common.none}
-                    {loan.signer?.role && <span className="dim small"> · {loan.signer.role}</span>}
-                    {loan.signer?.phone && <div className="dim small num">{loan.signer.phone}</div>}
+                    {loan.signer?.role && <span className="dim"> · {loan.signer.role}</span>}
+                    {loan.signer?.phone && <div className="sub ltr">{loan.signer.phone}</div>}
                   </td>
                   <td>
-                    <LoanStatusPill loan={loan} />
+                    <Pill tone={LOAN_TONE[loan.status]}>{t.loans.statusLabels[loan.status]}</Pill>
                   </td>
                   <td className="actions">
-                    <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                    <div className="row-actions">
                       {loan.status === "loaned" && (
                         <button
                           className="link-btn"
@@ -394,11 +426,7 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
                       <button
                         className="link-btn quiet"
                         disabled={busyId === loan.id}
-                        onClick={() => {
-                          if (confirm(t.common.confirmDelete)) {
-                            run(loan.id, () => api.loans.remove(loan.id));
-                          }
-                        }}
+                        onClick={() => setDeleting(loan)}
                       >
                         {t.common.delete}
                       </button>
@@ -410,17 +438,17 @@ function LoansTable({ loans, onChanged }: { loans: Loan[]; onChanged: () => void
           </table>
         </div>
       </div>
+
+      {deleting && (
+        <ConfirmModal
+          title={t.common.delete}
+          message={t.common.confirmDelete}
+          onClose={() => setDeleting(null)}
+          onConfirm={() => run(deleting.id, () => api.loans.remove(deleting.id))}
+        />
+      )}
     </>
   );
-}
-
-function LoanStatusPill({ loan }: { loan: Loan }) {
-  const tone: Record<Loan["status"], Tone> = {
-    loaned: "blue",
-    returned: "grey",
-    lost: "red",
-  };
-  return <Pill tone={tone[loan.status]}>{t.loans.statusLabels[loan.status]}</Pill>;
 }
 
 /* ========================================================================
@@ -428,22 +456,28 @@ function LoanStatusPill({ loan }: { loan: Loan }) {
  * ===================================================================== */
 function FeedbackCard({ entry, onChanged }: { entry: Feedback; onChanged: () => void }) {
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function remove() {
-    if (!confirm(t.common.confirmDelete)) return;
     try {
       await api.feedback.remove(entry.id);
+      setDeleting(false);
       onChanged();
     } catch (err) {
       setError((err as Error).message);
+      setDeleting(false);
     }
   }
 
   return (
-    <article className="card feedback-card">
+    <article
+      className="card feedback-card"
+      style={{ "--edge": edgeColour(entry.rating) } as CSSProperties}
+    >
       <div className="feedback-head">
         <strong>{locationLabel(entry.location)}</strong>
         <Stars value={entry.rating} />
+        <div className="spacer" />
         <time className="when" dateTime={entry.feedback_at}>
           {formatRelative(entry.feedback_at)}
         </time>
@@ -452,12 +486,21 @@ function FeedbackCard({ entry, onChanged }: { entry: Feedback; onChanged: () => 
       <p className="feedback-body">{entry.content}</p>
 
       <div className="row-actions">
-        <button className="link-btn danger" onClick={remove}>
+        <button className="link-btn quiet" onClick={() => setDeleting(true)}>
           {t.common.delete}
         </button>
       </div>
 
       {error && <ErrorBanner error={error} />}
+
+      {deleting && (
+        <ConfirmModal
+          title={t.common.delete}
+          message={t.common.confirmDelete}
+          onClose={() => setDeleting(false)}
+          onConfirm={remove}
+        />
+      )}
     </article>
   );
 }
@@ -538,7 +581,7 @@ function NewLoanModal({
   }
 
   return (
-    <Modal title={t.loans.new} onClose={onClose}>
+    <Modal title={t.loans.new} onClose={onClose} wide>
       <form onSubmit={submit}>
         <div className="form-body">
           {(loanableItems.length === 0 || locations.length === 0) && (
@@ -554,6 +597,8 @@ function NewLoanModal({
               />
             </div>
           )}
+
+          <InfoNote>{t.loans.reloanNote}</InfoNote>
 
           <Field label={t.loans.item} required span>
             <select value={itemId} onChange={(e) => setItemId(e.target.value)} required autoFocus>
@@ -605,9 +650,7 @@ function NewLoanModal({
             <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
 
-          <div className="span-2 form-section">{t.loans.signer}</div>
-
-          <Field label={t.loans.signer} required span>
+          <Field label={t.loans.signer} required span hint={t.loans.signerHint}>
             {locationId ? (
               <>
                 <select

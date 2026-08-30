@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { t } from "../i18n";
+import { AlertIcon, InfoIcon, WarningIcon } from "./icons";
 
 /* -------------------------------------------------------------------------
  * Modal — used by every "new X" form. Closes on backdrop click and Escape;
@@ -56,6 +57,12 @@ export function FormActions({
       <button type="button" className="btn btn-secondary" onClick={onCancel}>
         {t.common.cancel}
       </button>
+      <div className="spacer" />
+      {/* Says what the asterisks in the body mean, rather than repeating
+          "required" under every field. */}
+      <span className="form-note">
+        {t.common.requiredNote} <em className="req">*</em> {t.common.requiredNoteTail}
+      </span>
     </footer>
   );
 }
@@ -97,9 +104,18 @@ export function ConfirmModal({
 
   return (
     <Modal title={title} onClose={onClose}>
-      <div className="form-body single">
-        <p>{message}</p>
-        {error && <ErrorBanner error={error} />}
+      <div className="confirm-body">
+        <span className="confirm-icon" aria-hidden="true">
+          <WarningIcon />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p>{message}</p>
+          {error && (
+            <div style={{ marginTop: 12 }}>
+              <ErrorBanner error={error} />
+            </div>
+          )}
+        </div>
       </div>
       <footer className="form-actions">
         <button
@@ -126,11 +142,14 @@ export function Field({
   label,
   required,
   span,
+  hint,
   children,
 }: {
   label: string;
   required?: boolean;
   span?: boolean;
+  /** Helper text under the control. */
+  hint?: string;
   children: ReactNode;
 }) {
   return (
@@ -140,7 +159,18 @@ export function Field({
         {required && <em className="req"> *</em>}
       </span>
       {children}
+      {hint && <span className="field-hint">{hint}</span>}
     </label>
+  );
+}
+
+/** The teal note inside a form that explains a rule the fields can't state. */
+export function InfoNote({ children }: { children: ReactNode }) {
+  return (
+    <div className="info-note span-2">
+      <InfoIcon />
+      <span>{children}</span>
+    </div>
   );
 }
 
@@ -200,7 +230,7 @@ export function Combobox({
 /* -------------------------------------------------------------------------
  * Status pills.
  * ---------------------------------------------------------------------- */
-export type Tone = "green" | "blue" | "amber" | "red" | "grey";
+export type Tone = "green" | "teal" | "amber" | "red" | "grey";
 
 export function Pill({ tone, children }: { tone: Tone; children: ReactNode }) {
   return <span className={`pill pill-${tone}`}>{children}</span>;
@@ -213,16 +243,62 @@ export function Pill({ tone, children }: { tone: Tone; children: ReactNode }) {
  */
 export const ITEM_STATUS_TONE: Record<string, Tone> = {
   "בשימוש": "green",
-  "במחסן": "blue",
+  "במחסן": "teal",
   "בתחזוקה": "amber",
   "הושבת": "grey",
 };
 
 /* -------------------------------------------------------------------------
- * Page-level states.
+ * Page-level states — loading, empty and error each replace the content
+ * they stand in for, in place.
  * ---------------------------------------------------------------------- */
-export function EmptyState({ message }: { message: string }) {
-  return <p className="empty-state">{message}</p>;
+
+/** Widths of the four shimmer bars, so the skeleton reads as text, not a block. */
+const SKELETON_WIDTHS = ["38%", "64%", "52%", "70%"];
+
+export function Spinner() {
+  return (
+    <div className="skeleton-card" role="status" aria-label={t.common.loading}>
+      {SKELETON_WIDTHS.map((width, i) => (
+        <div
+          key={width}
+          className="skeleton-bar"
+          style={{ width, animationDelay: `${i * 0.15}s` }}
+        />
+      ))}
+      <div className="skeleton-foot">
+        <span className="spinner" aria-hidden="true" />
+        {t.common.loading}
+      </div>
+    </div>
+  );
+}
+
+export function EmptyState({
+  message,
+  hint,
+  icon,
+  action,
+}: {
+  message: string;
+  hint?: string;
+  /** A 19px glyph in a teal tile above the message. */
+  icon?: ReactNode;
+  /** A secondary button under the hint — the way out of the empty state. */
+  action?: ReactNode;
+}) {
+  return (
+    <div className="empty-state">
+      {icon && (
+        <div className="empty-icon" aria-hidden="true">
+          {icon}
+        </div>
+      )}
+      <div className="empty-title">{message}</div>
+      {hint && <div className="empty-hint">{hint}</div>}
+      {action}
+    </div>
+  );
 }
 
 export function ErrorBanner({
@@ -237,8 +313,9 @@ export function ErrorBanner({
   onAction?: () => void;
 }) {
   return (
-    <div className="error-banner">
-      <span>{error}</span>
+    <div className="error-banner" role="alert">
+      <AlertIcon />
+      <span className="message">{error}</span>
       {actionLabel && onAction && (
         <button className="link-btn" onClick={onAction}>
           {actionLabel}
@@ -253,24 +330,40 @@ export function ErrorBanner({
   );
 }
 
-export function Spinner() {
-  return <p className="muted">{t.common.loading}</p>;
-}
-
 /* -------------------------------------------------------------------------
  * Rating — read-only stars for feedback. Always five glyphs so the column
- * keeps its width; an unrated entry shows a dash instead.
+ * keeps its width; an unrated entry shows a dash instead. The colour encodes
+ * the score: gold normally, red for a complaint, grey when unrated.
  * ---------------------------------------------------------------------- */
+
+/** A rating at or below this reads as a complaint. */
+export const LOW_RATING = 2;
+
+export function starTone(rating: number | null): "" | " low" | " none" {
+  if (rating === null) return " none";
+  return rating <= LOW_RATING ? " low" : "";
+}
+
+/** The 3px leading edge of a feedback card, keyed off the same score. */
+export function edgeColour(rating: number | null): string {
+  if (rating === null) return "var(--border-strong)";
+  return rating <= LOW_RATING ? "var(--danger)" : "var(--brand-700)";
+}
+
 export function Stars({ value }: { value: number | null }) {
   if (!value) {
     return (
-      <span className="stars dim" aria-label={t.feedback.unrated}>
+      <span className="stars none" aria-label={t.feedback.unrated}>
         {t.common.none}
       </span>
     );
   }
   return (
-    <span className="stars" title={`${value}/5`} aria-label={`${t.feedback.rating} ${value}/5`}>
+    <span
+      className={`stars${starTone(value)}`}
+      title={`${value}/5`}
+      aria-label={`${t.feedback.rating} ${value}/5`}
+    >
       {"★".repeat(value)}
       {"☆".repeat(5 - value)}
     </span>

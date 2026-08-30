@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api";
-import { t } from "../i18n";
+import { formatRelative, isThisMonth, t } from "../i18n";
 import { useShell } from "../shellData";
+import { ProjectsIcon } from "../components/icons";
 import {
+  ConfirmModal,
   EmptyState,
   ErrorBanner,
   Field,
@@ -22,22 +24,47 @@ const CREATABLE_STATUSES: ProjectStatus[] = ["active", "completed"];
 
 const STATUS_TONE: Record<ProjectStatus, Tone> = {
   active: "green",
-  completed: "blue",
+  completed: "teal",
   archived: "grey",
 };
 
 type Scope = "live" | "archived";
 
 export default function ProjectsPage() {
-  const { projects } = useShell();
+  const shell = useShell();
+  const { projects } = shell;
   const { data, error, loading, reload } = projects;
 
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<ProjectSummary | null>(null);
   const [scope, setScope] = useState<Scope>("live");
 
-  const visible = (data ?? []).filter((project) =>
+  const all = data ?? [];
+  const visible = all.filter((project) =>
     scope === "archived" ? project.status === "archived" : project.status !== "archived",
   );
+
+  // How much equipment each project carries. The projects endpoint counts
+  // loans and feedback but not items, so that one column is folded from the
+  // items list the shell already holds — no new endpoint.
+  const itemsByProject = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of shell.items.data ?? []) {
+      counts.set(item.project_id, (counts.get(item.project_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [shell.items.data]);
+
+  const live = all.filter((project) => project.status !== "archived");
+  const summary = {
+    projects: live.length,
+    items: (shell.items.data ?? []).length,
+    openLoans: live.reduce((n, project) => n + project.open_loan_count, 0),
+    feedback: (shell.feedback.data ?? []).filter((entry) => isThisMonth(entry.feedback_at)).length,
+  };
+
+  const emptyMessage = scope === "archived" ? t.projects.emptyArchived : t.projects.empty;
+  const emptyHint = scope === "archived" ? t.projects.emptyArchivedHint : t.projects.emptyHint;
 
   return (
     <>
@@ -53,6 +80,13 @@ export default function ProjectsPage() {
         </div>
       </header>
 
+      <div className="stat-strip">
+        <Tile label={t.projects.summary.active} value={summary.projects} />
+        <Tile label={t.projects.summary.items} value={summary.items} />
+        <Tile label={t.projects.summary.openLoans} value={summary.openLoans} teal />
+        <Tile label={t.projects.summary.monthFeedback} value={summary.feedback} />
+      </div>
+
       {/* Scope is a filter, not a page action: it belongs with the other
           sub-navigation under the header, not beside the primary button. */}
       <div className="filter-row">
@@ -64,6 +98,8 @@ export default function ProjectsPage() {
             { key: "archived", label: t.projects.showArchived },
           ]}
         />
+        <div className="spacer" />
+        <span className="record-count num">{t.common.records(visible.length)}</span>
       </div>
 
       {error && <ErrorBanner error={error} onRetry={reload} />}
@@ -71,15 +107,47 @@ export default function ProjectsPage() {
 
       {data && visible.length === 0 && (
         <EmptyState
-          message={scope === "archived" ? t.projects.emptyArchived : t.projects.empty}
+          message={emptyMessage}
+          hint={emptyHint}
+          icon={<ProjectsIcon size={19} />}
+          action={
+            scope === "live" && (
+              <button className="btn btn-secondary btn-sm" onClick={() => setCreating(true)}>
+                + {t.projects.new}
+              </button>
+            )
+          }
         />
       )}
 
       {visible.length > 0 && (
-        <div className="project-grid">
-          {visible.map((project) => (
-            <ProjectCard key={project.id} project={project} />
-          ))}
+        <div className="table-card">
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t.projects.name}</th>
+                  <th>{t.projects.status}</th>
+                  <th>{t.projects.columns.items}</th>
+                  <th>{t.projects.columns.loans}</th>
+                  <th>{t.projects.columns.open}</th>
+                  <th>{t.projects.columns.feedback}</th>
+                  <th>{t.common.updated}</th>
+                  <th className="shrink" />
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((project) => (
+                  <ProjectRow
+                    key={project.id}
+                    project={project}
+                    itemCount={itemsByProject.get(project.id) ?? 0}
+                    onDelete={() => setDeleting(project)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -92,36 +160,76 @@ export default function ProjectsPage() {
           }}
         />
       )}
+
+      {deleting && (
+        <ConfirmModal
+          title={t.projects.deleteConfirmTitle}
+          message={t.projects.deleteConfirmMessage(deleting.name)}
+          confirmLabel={t.projects.deleteProject}
+          onClose={() => setDeleting(null)}
+          onConfirm={async () => {
+            await api.projects.remove(deleting.id);
+            setDeleting(null);
+            shell.reloadAll();
+          }}
+        />
+      )}
     </>
   );
 }
 
-/** The whole card is the link to the project — there is nothing else to click. */
-function ProjectCard({ project }: { project: ProjectSummary }) {
+function Tile({ label, value, teal }: { label: string; value: number; teal?: boolean }) {
   return (
-    <Link to={`/projects/${project.id}`} className="card project-card">
-      <div className="project-card-top">
-        <h3>{project.name}</h3>
-        <Pill tone={STATUS_TONE[project.status]}>{t.projects.statusLabels[project.status]}</Pill>
-      </div>
-
-      {project.description && <p className="project-card-desc">{project.description}</p>}
-
-      <div className="project-card-stats">
-        <Stat label={t.projects.stats.loans} value={project.loan_count} />
-        <Stat label={t.projects.stats.open} value={project.open_loan_count} />
-        <Stat label={t.projects.stats.feedback} value={project.feedback_count} />
-      </div>
-    </Link>
+    <div className="stat-card">
+      <div className="label">{label}</div>
+      <div className={`value num${teal ? " teal" : ""}`}>{value}</div>
+    </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function ProjectRow({
+  project,
+  itemCount,
+  onDelete,
+}: {
+  project: ProjectSummary;
+  itemCount: number;
+  onDelete: () => void;
+}) {
+  const navigate = useNavigate();
+  const open = () => navigate(`/projects/${project.id}`);
+
   return (
-    <div>
-      <div className="value num">{value}</div>
-      <div className="label">{label}</div>
-    </div>
+    <tr>
+      <td>
+        <button className="link-btn project-name" onClick={open}>
+          {project.name}
+        </button>
+        {project.description && <div className="sub">{project.description}</div>}
+      </td>
+      <td>
+        <Pill tone={STATUS_TONE[project.status]}>{t.projects.statusLabels[project.status]}</Pill>
+      </td>
+      <td className="num">{itemCount}</td>
+      <td className="num">{project.loan_count}</td>
+      {/* The one number worth chasing gets the brand colour — but only when
+          there is actually something open. */}
+      <td className={`num strong${project.open_loan_count > 0 ? " teal" : " dim"}`}>
+        {project.open_loan_count}
+      </td>
+      <td className="num">{project.feedback_count}</td>
+      <td className="meta">{formatRelative(project.updated_at)}</td>
+      <td className="actions">
+        <div className="row-actions">
+          <button className="link-btn" onClick={open}>
+            {t.common.open}
+          </button>
+          <button className="link-btn danger" onClick={onDelete}>
+            {t.common.delete}
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
 

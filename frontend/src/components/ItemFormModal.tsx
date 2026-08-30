@@ -4,7 +4,7 @@ import { api } from "../api";
 import { useAsync } from "../hooks";
 import { locationLabel, t } from "../i18n";
 import { useShell } from "../shellData";
-import { Combobox, ErrorBanner, Field, FormActions, Modal, Spinner } from "./ui";
+import { Combobox, ErrorBanner, Field, FormActions, Modal, Spinner, InfoNote } from "./ui";
 import type { Item } from "../types";
 
 /** Trimmed, case-insensitive — so "מצלמות" and " מצלמות " resolve to the same row. */
@@ -238,7 +238,7 @@ export function ItemFormModal({
               </Field>
             </>
           ) : (
-            <p className="form-note span-2">{t.equipment.defaultsNote}</p>
+            <InfoNote>{t.equipment.defaultsNote}</InfoNote>
           )}
 
           {error && (

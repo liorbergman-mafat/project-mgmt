@@ -1,36 +1,39 @@
+import { t } from "../i18n";
+
 /**
  * חברון logo.
  *
- * `frontend/public/logo.png` is a cleaned crop of `frontend/brand/logo-source.jpg`,
- * which is the file as it was handed over: a 2816×1536 JPEG with the mark adrift
- * in a wide, faintly green-tinted field (247–252 rather than white) and a soft
- * drop shadow beneath the shield. The shipped PNG is cropped to the artwork,
- * has the shadow trimmed off, and had its ground flattened to a true 255 — the
- * outer field flood-filled from the border so the whites *inside* the shield
- * survive. Re-cut it from the source rather than from the PNG.
- *
- * A pure-white ground is what `mix-blend-mode: multiply` needs: it makes the
- * ground vanish into whatever light surface the mark sits on, so the one file
- * works on both the white bar and the N20 login canvas. Multiplying the
- * original would have smeared its tint across both.
+ * `frontend/public/logo.png` is the mark as handed over with the restyle: the
+ * shield at 423×480, its white ground removed with an edge flood-fill so the
+ * white panels *inside* the shield survive. Because the ground is transparent
+ * rather than white, the one file works on the dark sidebar, the dark login
+ * canvas and the white login column alike — no blend mode needed.
  *
  * The mark carries no wordmark, so callers that need the name set it in text
- * alongside — see the bar's `.brand` and the login lockup.
+ * alongside — see the sidebar's `.sidebar-brand` and the login lockup. Size
+ * comes from CSS at each of those sites, so the same element can be 28px in
+ * the sidebar and 190px on the login art.
  */
 const SRC = "/logo.png";
 
-/** The shipped crop, 423×480 - enough for the 104px login mark at DPR 4. */
-const ASPECT = 423 / 480;
+export function Logo({ className = "logo" }: { className?: string }) {
+  return <img className={className} src={SRC} alt="" width={423} height={480} />;
+}
 
-/** `size` is the rendered height; the width follows from the artwork. */
-export function Logo({ size = 32 }: { size?: number }) {
+/**
+ * The parent organisation's mark (AI&Autonomy), shown small and uncaptioned in
+ * the far corner of the top bar. `parent-logo.png` beside it keeps the full
+ * lockup for light-background contexts (print, exports).
+ */
+export function ParentMark() {
   return (
     <img
-      className="logo"
-      src={SRC}
-      alt="חברון"
-      width={Math.round(size * ASPECT)}
-      height={size}
+      className="parent-mark"
+      src="/parent-mark.png"
+      alt=""
+      title={t.shell.parentOrg}
+      width={228}
+      height={211}
     />
   );
 }
