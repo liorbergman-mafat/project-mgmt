@@ -1726,7 +1726,9 @@ tr.group-row td {
   min-height: 100vh;
   direction: rtl;
   display: flex;
-  align-items: center;
+  /* Top-aligned, not centred: the pane's own padding-top is what places the
+     lockup, and `center` here was cancelling it out. */
+  align-items: flex-start;
   justify-content: center;
   background: var(--panel);
 }
