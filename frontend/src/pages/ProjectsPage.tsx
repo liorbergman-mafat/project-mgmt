@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { formatRelative, isThisMonth, t } from "../i18n";
 import { useShell } from "../shellData";
-import { ProjectsIcon } from "../components/icons";
+import { OpenIcon, ProjectsIcon, TrashIcon } from "../components/icons";
 import {
   ConfirmModal,
   EmptyState,
@@ -221,11 +221,23 @@ function ProjectRow({
       <td className="meta">{formatRelative(project.updated_at)}</td>
       <td className="actions">
         <div className="row-actions">
-          <button className="link-btn" onClick={open}>
-            {t.common.open}
+          {/* Icons, not words — the label survives as the tooltip and the
+              accessible name. */}
+          <button
+            className="icon-btn"
+            onClick={open}
+            title={t.common.open}
+            aria-label={`${t.common.open} ${project.name}`}
+          >
+            <OpenIcon />
           </button>
-          <button className="link-btn danger" onClick={onDelete}>
-            {t.common.delete}
+          <button
+            className="icon-btn danger"
+            onClick={onDelete}
+            title={t.common.delete}
+            aria-label={`${t.common.delete} ${project.name}`}
+          >
+            <TrashIcon />
           </button>
         </div>
       </td>

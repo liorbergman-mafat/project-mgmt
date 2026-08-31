@@ -77,7 +77,7 @@
 
   /* Layout */
   --sidebar-w: 258px;
-  --topbar-h: 52px;
+  --topbar-h: 62px;
   --content-pad: 22px 26px 48px;
 
   /* Type — Heebo, already loaded in frontend/index.html */
@@ -381,7 +381,8 @@ table {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 22px;
+  /* Flush to the trailing corner of the page — that is where the lockup sits. */
+  padding: 0 22px 0 8px;
 }
 
 .crumb {
@@ -410,6 +411,31 @@ table {
   height: 30px;
   object-fit: contain;
   flex: 0 0 auto;
+}
+
+/* Same pair as on the login screen, compressed to fit the 52px bar. */
+.topbar-lockup {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.topbar-mark {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+}
+
+.topbar-unit {
+  direction: ltr;
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.2;
+  margin-top: 1px;
 }
 
 .content {
@@ -645,6 +671,12 @@ table {
   align-items: center;
 }
 
+/* Icon buttons carry their own hit padding, so they sit closer than words do. */
+.row-actions:has(> .icon-btn) {
+  gap: 2px;
+  margin-inline-start: -6px; /* pull the first hit box back to the text edge */
+}
+
 .icon-btn {
   width: 30px;
   height: 30px;
@@ -662,6 +694,15 @@ table {
 .icon-btn:hover {
   background: var(--hover-flat);
   color: var(--ink);
+}
+
+.icon-btn.danger {
+  color: var(--dim);
+}
+
+.icon-btn.danger:hover {
+  background: var(--danger-tint);
+  color: var(--danger);
 }
 
 /* ============================================================================
@@ -1673,19 +1714,21 @@ tr.group-row td {
  * ========================================================================= */
 
 .login {
-  height: 100vh;
+  min-height: 100vh;
   direction: rtl;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: var(--brand-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
 }
 
 .login-form-pane {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 0 64px;
-  background: var(--panel);
+  justify-content: flex-start;
+  padding: 4vh 24px 40px;
+  width: 100%;
+  align-items: center;
 }
 
 .login-box {
@@ -1695,6 +1738,37 @@ tr.group-row td {
 
 .login-brand {
   margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* The mark and "AI & Autonomy" are one lockup: they sit tight against each
+   other, and the breathing room goes below the pair, before the app name. */
+.login-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 34px;
+}
+
+/* The source PNG is only 228px wide, so anything larger upscales and softens —
+   keep the displayed width under it. */
+.login-brand-mark {
+  width: 150px;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 4px;
+}
+
+.login-brand-unit {
+  direction: ltr;
+  font-size: var(--fs-th);
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .login-brand-name {
@@ -1716,6 +1790,7 @@ tr.group-row td {
   line-height: 1.6;
   margin-bottom: 22px;
   max-width: 320px;
+  text-align: center;
 }
 
 .login-fields {
@@ -1744,32 +1819,6 @@ tr.group-row td {
   font-size: var(--fs-th);
   color: var(--dim);
   line-height: 1.6;
-}
-
-.login-art {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--brand-900);
-}
-
-.login-art::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(120% 90% at 20% 15%, rgba(48, 144, 144, .34), transparent 60%),
-    radial-gradient(90% 80% at 85% 90%, rgba(124, 34, 48, .42), transparent 62%);
-}
-
-.login-art-mark {
-  position: relative;
-  width: 210px;
-  height: auto;
-  opacity: .94;
-  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .4));
 }
 
 /* ============================================================================
@@ -1993,16 +2042,8 @@ textarea:disabled {
     padding: 14px 14px 40px;
   }
 
-  .login {
-    grid-template-columns: 1fr;
-  }
-
-  .login-art {
-    display: none;
-  }
-
   .login-form-pane {
-    padding: 0 28px;
+    padding: 3vh 20px 32px;
   }
 }
 

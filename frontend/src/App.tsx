@@ -131,7 +131,11 @@ function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
         <div className="shell-main">
           <header className="topbar">
             <Breadcrumb projects={projects.data} />
-            <ParentMark />
+            {/* Mark and unit name are one lockup — see the login screen. */}
+            <div className="topbar-lockup">
+              <ParentMark className="topbar-mark" />
+              <div className="topbar-unit">AI &amp; Autonomy</div>
+            </div>
           </header>
 
           <main className="content">

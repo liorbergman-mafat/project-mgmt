@@ -40,6 +40,11 @@ export default function LoginPage({ onSignIn }: { onSignIn: (username: string) =
       <div className="login-form-pane">
         <form className="login-box" onSubmit={submit}>
           <div className="login-brand">
+            {/* Mark and unit name are one lockup — they always move together. */}
+            <div className="login-lockup">
+              <ParentMark className="login-brand-mark" />
+              <div className="login-brand-unit">AI &amp; Autonomy</div>
+            </div>
             <div className="login-brand-name">{t.appName}</div>
             <div className="login-brand-sub">{t.auth.title}</div>
           </div>
@@ -76,11 +81,6 @@ export default function LoginPage({ onSignIn }: { onSignIn: (username: string) =
 
           <p className="login-note">{t.auth.note}</p>
         </form>
-      </div>
-
-      {/* Two radial washes behind the מנהלת's mark. */}
-      <div className="login-art" aria-hidden="true">
-        <ParentMark className="login-art-mark" />
       </div>
     </div>
   );

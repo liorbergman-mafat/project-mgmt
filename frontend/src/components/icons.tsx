@@ -115,6 +115,28 @@ export function ChevronStart({ size = 13 }: { size?: number }) {
   );
 }
 
+/** Open a row — an arrow into the RTL reading flow, matching ChevronStart. */
+export function OpenIcon({ size = 15 }: { size?: number }) {
+  return (
+    <Glyph size={size} width={2}>
+      <path d="m11 6-6 6 6 6" />
+      <path d="M19 12H5" />
+    </Glyph>
+  );
+}
+
+/** Delete a row. */
+export function TrashIcon({ size = 15 }: { size?: number }) {
+  return (
+    <Glyph size={size} width={1.8}>
+      <path d="M4 7h16" />
+      <path d="M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.6a1.2 1.2 0 0 1 1.2 1.2V7" />
+      <path d="M6.5 7l.8 12a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5L17.5 7" />
+      <path d="M10.4 11v6M13.6 11v6" />
+    </Glyph>
+  );
+}
+
 export function AlertIcon({ size = 15 }: { size?: number }) {
   return (
     <Glyph size={size} width={2}>
