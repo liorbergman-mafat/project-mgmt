@@ -7,8 +7,9 @@ export const t = {
   nav: {
     projects: "פרויקטים",
     equipment: "ציוד",
-    locations: "מיקומים",
+    locations: "יחידות",
     feedback: "משוב מהיחידות",
+    settings: "הגדרות",
   },
 
   common: {
@@ -46,10 +47,9 @@ export const t = {
     password: "סיסמה",
     submit: "התחברות",
     note: "כל הפעולות במערכת נרשמות ומשויכות למשתמש.",
-    /** The avatar's tooltip — there is no user record to read a real role from. */
-    role: "משתמש מערכת",
     missing: "יש להזין שם משתמש וסיסמה.",
-    invalid: "שם המשתמש או הסיסמה שגויים.",
+    /* A rejected sign-in shows the server's own message — one text for a wrong
+       username and a wrong password alike. See backend/app/routers/users.py. */
   },
 
   projects: {
@@ -110,7 +110,7 @@ export const t = {
     model: "דגם",
     serialId: "מספר סידורי",
     status: "סטטוס",
-    location: "מיקום",
+    location: "יחידה",
     selectTypeFirst: "בחר קטגוריה תחילה",
     empty: "טרם נוספו פריטים לפרויקט זה.",
   },
@@ -119,7 +119,7 @@ export const t = {
     title: "השאלות",
     new: "השאלה חדשה",
     item: "פריט",
-    location: "מיקום",
+    location: "יחידה",
     quantity: "כמות",
     status: "סטטוס",
     loanedAt: "תאריך השאלה",
@@ -129,14 +129,14 @@ export const t = {
     chooseSigner: "בחר איש קשר",
     signerHint: "מתוך אנשי הקשר שרשומים ליחידה הנבחרת",
     reloanNote: "פריט שנמצא בהשאלה פתוחה אינו ניתן להשאלה חוזרת עד להחזרתו.",
-    selectLocationFirst: "בחר מיקום תחילה",
+    selectLocationFirst: "בחר יחידה תחילה",
     noContactsForLocation: "אין אנשי קשר רשומים ליחידה זו.",
     addContact: "הוסף איש קשר",
     markReturned: "סמן כהוחזר",
     empty: "לא הושאלו פריטים בפרויקט זה.",
     noItems: "אין עדיין פריטים בפרויקט זה — הוסף פריט תחילה.",
     allLoaned: "כל הפריטים בפרויקט זה מושאלים כרגע.",
-    noLocations: "אין מיקומים רשומים — הוסף מיקום בעמוד ״מיקומים״ תחילה.",
+    noLocations: "אין יחידות רשומות — הוסף יחידה בעמוד ״יחידות״ תחילה.",
     statusLabels: {
       loaned: "מושאל",
       returned: "הוחזר",
@@ -218,40 +218,40 @@ export const t = {
     unitCount: (n: number) => (n === 1 ? "פריט אחד" : `${n} פריטים`),
     noProjects: "אין עדיין פרויקטים — צור פרויקט תחילה.",
     /** Says where status and location come from, since the add form does not ask. */
-    defaultsNote: "ציוד חדש נרשם כנמצא במחסן. הסטטוס והמיקום ניתנים לשינוי בעריכת הפריט.",
+    defaultsNote: "ציוד חדש נרשם כנמצא במחסן. הסטטוס והיחידה ניתנים לשינוי בעריכת הפריט.",
   },
 
   locations: {
     /* The directory screen reached from the nav bar. */
-    title: "מיקומים",
+    title: "יחידות",
     subtitle: "יחידות ומחסנים — היכן שנמצא כל ציוד",
     itemCount: "פריטים",
     itemsHere: "פריטים כאן",
     openLoans: "השאלות פתוחות",
     contact: "איש קשר",
-    stock: "ציוד במיקום",
-    stockEmpty: "אין פריטים רשומים במיקום זה.",
+    stock: "ציוד ביחידה",
+    stockEmpty: "אין פריטים רשומים ביחידה זו.",
     lastFeedback: "משוב אחרון",
-    lastFeedbackEmpty: "טרם התקבל משוב ממיקום זה.",
+    lastFeedbackEmpty: "טרם התקבל משוב מיחידה זו.",
     openDetail: "הצג פריטים ביחידה",
-    noSelection: "בחר מיקום מהרשימה.",
+    noSelection: "בחר יחידה מהרשימה.",
 
     name: "שם",
-    kind: "סוג מיקום",
+    kind: "סוג יחידה",
     category: "קטגוריה",
     brigade: "חטיבה",
     battalion: "גדוד",
     contactName: "איש קשר",
     contactPhone: "טלפון",
     notes: "הערות",
-    new: "מיקום חדש",
-    edit: "עריכת מיקום",
-    deleteConfirmTitle: "מחיקת מיקום",
+    new: "יחידה חדשה",
+    edit: "עריכת יחידה",
+    deleteConfirmTitle: "מחיקת יחידה",
     deleteConfirmMessage: (name: string) =>
-      `למחוק את המיקום "${name}"? הפעולה אינה הפיכה, ותיחסם אם רשומים בו פריטים או השאלות.`,
-    empty: "אין עדיין מיקומים.",
-    emptyDirectory: "אין עדיין מיקומים. צור את הראשון כדי להתחיל.",
-    noMatches: "אין מיקומים התואמים לסינון.",
+      `למחוק את היחידה "${name}"? הפעולה אינה הפיכה, ותיחסם אם רשומים בה פריטים או השאלות.`,
+    empty: "אין עדיין יחידות.",
+    emptyDirectory: "אין עדיין יחידות. צור את הראשונה כדי להתחיל.",
+    noMatches: "אין יחידות התואמות לסינון.",
     battalionCount: (n: number) => (n === 1 ? "יחידה אחת" : `${n} יחידות`),
     /** The grouped table's header strip, and the tally beside it. */
     grouped: "מקובץ לפי חטיבה",
@@ -261,7 +261,9 @@ export const t = {
       `${items} פריטים כאן · ${open} השאלות פתוחות`,
   },
 
-  /** The one-location screen; "unit" is what a location of kind יחידה is called. */
+  /** The single-location screen. The UI calls locations יחידות throughout, so
+      this reads the same as the directory — `kind` still separates a יחידה
+      from a מחסן in the data. */
   units: {
     notFound: "היחידה לא נמצאה.",
     itemsTitle: "פריטים ביחידה",
@@ -280,6 +282,102 @@ export const t = {
     role: "תפקיד",
     empty: "אין אנשי קשר רשומים ליחידה זו.",
     add: "הוסף איש קשר",
+  },
+
+  /* ======================================================================
+   * Settings — reached from the gear at the foot of the nav bar.
+   * =================================================================== */
+  settings: {
+    title: "הגדרות",
+    subtitle: "ניהול משתמשי המערכת ומעקב אחר הפעולות שבוצעו בה",
+    tabs: {
+      users: "משתמשים",
+      activity: "פעולות",
+    },
+  },
+
+  users: {
+    title: "משתמשי המערכת",
+    subtitle: "מי מורשה להיכנס למערכת",
+    new: "משתמש חדש",
+    edit: "עריכת משתמש",
+    username: "שם משתמש",
+    fullName: "שם מלא",
+    role: "הרשאה",
+    status: "סטטוס",
+    lastLogin: "כניסה אחרונה",
+    neverLoggedIn: "טרם נכנס",
+    password: "סיסמה",
+    passwordConfirm: "אימות סיסמה",
+    changePassword: "שינוי סיסמה",
+    changePasswordFor: (name: string) => `שינוי סיסמה עבור ${name}`,
+    passwordMismatch: "הסיסמאות אינן תואמות.",
+    /** Shown under the field as a rule, not as an error — the API enforces it too. */
+    passwordRule: "הסיסמה חייבת להכיל 4 תווים לפחות.",
+    passwordHint: "הסיסמה מוצפנת בשרת ואינה ניתנת לשחזור — רק להחלפה.",
+    active: "פעיל",
+    disabled: "מושבת",
+    activeHint: "משתמש מושבת נשאר ברשימה, אך אינו יכול להיכנס למערכת.",
+    you: "זה אתה",
+    empty: "אין עדיין משתמשים.",
+    deleteConfirmTitle: "מחיקת משתמש",
+    deleteConfirmMessage: (name: string) =>
+      `למחוק את המשתמש "${name}"? הפעולות שביצע יישארו ביומן. הפעולה אינה הפיכה.`,
+    /** `role` is shown, not enforced — see auth.ts. */
+    roleNote: "ההרשאה היא סימון לצורכי סדר בלבד, ואינה חוסמת גישה למסכים.",
+    roles: {
+      admin: "מנהל מערכת",
+      user: "משתמש",
+    } as const,
+  },
+
+  activity: {
+    title: "פעולות",
+    subtitle: "כל שינוי שבוצע במערכת, לפי מי שביצע אותו",
+    when: "מתי",
+    actor: "מי ביצע",
+    action: "סוג הפעולה",
+    subject: "על מה",
+    unknownActor: "לא ידוע",
+    searchPlaceholder: "חיפוש לפי משתמש או רשומה",
+    empty: "טרם נרשמו פעולות במערכת.",
+    noMatches: "אין פעולות התואמות לסינון.",
+    note: "היומן נרשם אוטומטית ואינו ניתן לעריכה. מוצגות 300 הפעולות האחרונות.",
+    /** The chip row above the table. Keys match the action keys below. */
+    filters: {
+      all: "הכול",
+      create: "הוספות",
+      update: "עדכונים",
+      delete: "מחיקות",
+      login: "כניסות",
+    },
+    /** The API records stable keys; these are the words the screen shows. */
+    actions: {
+      create: "הוספה",
+      update: "עדכון",
+      delete: "מחיקה",
+      archive: "העברה לארכיון",
+      unarchive: "שחזור מארכיון",
+      return: "החזרת פריט",
+      password: "שינוי סיסמה",
+      login: "כניסה למערכת",
+    } as const,
+    /** What the action was done to. */
+    entities: {
+      projects: "פרויקט",
+      items: "פריט ציוד",
+      "item-types": "קטגוריית ציוד",
+      "item-models": "דגם ציוד",
+      locations: "יחידה",
+      contacts: "איש קשר",
+      loans: "השאלה",
+      feedback: "משוב",
+      users: "משתמש",
+      auth: "מערכת",
+    } as const,
+    /** Nothing technical ever reaches the screen — an unknown key reads plainly. */
+    unknownAction: "פעולה",
+    unknownEntity: "רשומה",
   },
 } as const;
 

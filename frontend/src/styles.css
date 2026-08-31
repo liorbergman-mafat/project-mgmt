@@ -349,7 +349,10 @@ table {
   color: var(--on-dark-muted);
 }
 
-.sign-out {
+/* The two controls in the footer's far corner — settings and sign-out. They
+   are a link and a button respectively, so the shared look lives on a class
+   rather than on either element. */
+.footer-btn {
   background: transparent;
   border: 0;
   color: var(--on-dark-muted);
@@ -359,7 +362,13 @@ table {
   display: flex;
 }
 
-.sign-out:hover {
+.footer-btn:hover {
+  color: #fff;
+  background: var(--on-dark-hover);
+}
+
+/* Settings is a destination, so unlike sign-out it can be the current one. */
+.footer-btn.active {
   color: #fff;
   background: var(--on-dark-hover);
 }
@@ -2064,4 +2073,37 @@ textarea:disabled {
   .modal-backdrop {
     padding: 20px 12px;
   }
+}
+
+/* ============================================================================
+ * Settings
+ * ========================================================================= */
+
+/* Marks the signed-in user's own row in the users table. */
+.row-tag {
+  margin-inline-start: 7px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--hover-flat);
+  font-size: 11px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* The name of the record an activity entry is about, after its kind. */
+.subject-label {
+  margin-inline-start: 7px;
+  color: var(--dim);
+}
+
+.subject-label::before {
+  content: "·";
+  margin-inline-end: 7px;
+}
+
+/* Filter-as-you-type over the activity log — sized to sit in a pane header
+   rather than in a form, so it does not stretch to the full column width. */
+.search-input {
+  width: min(260px, 45vw);
+  height: 32px;
 }

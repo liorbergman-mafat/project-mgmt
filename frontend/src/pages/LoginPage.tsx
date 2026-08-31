@@ -1,38 +1,42 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { verify } from "../auth";
+import { api } from "../api";
+import type { SessionUser } from "../auth";
 import { ParentMark } from "../components/ParentMark";
 import { ErrorBanner } from "../components/ui";
 import { t } from "../i18n";
 
 /**
- * Placeholder sign-in screen.
+ * Sign-in.
  *
- * There is no auth backend yet: the pair is checked against the short list in
- * `auth.ts`, which runs entirely in the browser — see the warning there. It
- * exists so the shape of the screen is settled for whenever Supabase Auth is
- * added.
+ * The pair goes to the API, which checks it against the `users` table —
+ * managed from Settings → משתמשים — and answers with the user record the
+ * session is built from. The server deliberately gives one message for a
+ * wrong username and a wrong password alike; this screen just shows it.
+ *
+ * It gates the UI, not the data: see the note in auth.ts.
  */
-export default function LoginPage({ onSignIn }: { onSignIn: (username: string) => void }) {
+export default function LoginPage({ onSignIn }: { onSignIn: (user: SessionUser) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     if (!username.trim() || !password) {
       setError(t.auth.missing);
       return;
     }
-    const authorized = verify(username, password);
-    if (!authorized) {
-      // Deliberately one message for both halves — naming which one was wrong
-      // tells a stranger which usernames exist.
-      setError(t.auth.invalid);
+    setBusy(true);
+    setError(null);
+    try {
+      onSignIn(await api.auth.login(username.trim(), password));
+    } catch (err) {
+      setError((err as Error).message);
       setPassword("");
-      return;
+      setBusy(false);
     }
-    onSignIn(authorized);
   }
 
   return (
@@ -60,6 +64,7 @@ export default function LoginPage({ onSignIn }: { onSignIn: (username: string) =
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
+                disabled={busy}
                 autoFocus
               />
             </label>
@@ -71,11 +76,12 @@ export default function LoginPage({ onSignIn }: { onSignIn: (username: string) =
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                disabled={busy}
               />
             </label>
 
-            <button type="submit" className="btn btn-primary">
-              {t.auth.submit}
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              {busy ? t.common.loading : t.auth.submit}
             </button>
           </div>
 

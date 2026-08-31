@@ -3,8 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from postgrest.exceptions import APIError
 
+from .activity import ActivityMiddleware
 from .config import get_settings
 from .routers import (
+    activity,
     contacts,
     feedback,
     item_models,
@@ -14,6 +16,7 @@ from .routers import (
     loans,
     locations,
     projects,
+    users,
 )
 
 settings = get_settings()
@@ -32,11 +35,23 @@ FK_VIOLATION_MESSAGES: dict[str, str] = {
     "loans_signer_contact_id_fkey": "לא ניתן למחוק איש קשר זה — הוא חתום על השאלות קיימות.",
 }
 
+# The same idea for unique constraints ("<table>_<column>_key"), which surface
+# when a name that has to be one of a kind is used twice.
+UNIQUE_VIOLATION_MESSAGES: dict[str, str] = {
+    "users_username_key": "שם המשתמש כבר תפוס.",
+    "item_types_name_key": "קיימת כבר קטגוריה בשם זה.",
+    "item_models_type_id_name_key": "קיים כבר דגם בשם זה תחת הקטגוריה הזו.",
+}
+
 app = FastAPI(
     title="Loan Manager API",
     description="Implementation and item loans for military units, grouped by project.",
     version="0.1.0",
 )
+
+# Records every change made through the API. Added first so it sits *inside*
+# CORS, i.e. it never sees a preflight request.
+app.add_middleware(ActivityMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -54,15 +69,16 @@ def handle_postgrest_error(request: Request, exc: APIError) -> JSONResponse:
 
     23503 is a foreign-key violation — in practice, trying to delete a
     location, type, model, or status that is still referenced elsewhere.
-    That is a client mistake (409), not a server fault.
+    23505 is a unique violation — a name already taken. Both are client
+    mistakes (409), not server faults.
     """
-    status = 409 if exc.code == "23503" else 400
+    conflicts = {"23503": FK_VIOLATION_MESSAGES, "23505": UNIQUE_VIOLATION_MESSAGES}
+    status = 409 if exc.code in conflicts else 400
     detail = exc.message
-    if exc.code == "23503":
-        for constraint, friendly in FK_VIOLATION_MESSAGES.items():
-            if constraint in (exc.message or ""):
-                detail = friendly
-                break
+    for constraint, friendly in conflicts.get(exc.code, {}).items():
+        if constraint in (exc.message or ""):
+            detail = friendly
+            break
     return JSONResponse(
         status_code=status,
         content={"detail": detail, "hint": exc.hint, "code": exc.code},
@@ -83,3 +99,6 @@ app.include_router(item_statuses.router)
 app.include_router(items.router)
 app.include_router(loans.router)
 app.include_router(feedback.router)
+app.include_router(users.router)
+app.include_router(users.auth_router)
+app.include_router(activity.router)

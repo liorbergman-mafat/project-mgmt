@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import type { AsyncState } from "./hooks";
-import type { Feedback, Item, Location, ProjectSummary } from "./types";
+import type { Feedback, Item, Location, ProjectSummary, User } from "./types";
 
 /**
  * The lists the nav bar counts are built from.
@@ -12,13 +12,19 @@ import type { Feedback, Item, Location, ProjectSummary } from "./types";
  * follows along.
  */
 export interface ShellData {
-  user: string;
+  /** The signed-in user, as the API returned them at sign-in. */
+  user: User;
   projects: AsyncState<ProjectSummary[]>;
   items: AsyncState<Item[]>;
   locations: AsyncState<Location[]>;
   feedback: AsyncState<Feedback[]>;
   /** After a change that can touch more than one of the above (e.g. a loan). */
   reloadAll: () => void;
+  /**
+   * Update the session from a freshly saved user record. The settings screen
+   * can edit the signed-in user, and the nav bar has to follow along.
+   */
+  refresh: (user: User) => void;
 }
 
 const ShellContext = createContext<ShellData | null>(null);

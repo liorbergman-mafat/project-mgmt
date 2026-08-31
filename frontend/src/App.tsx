@@ -9,6 +9,7 @@ import {
   FeedbackIcon,
   LocationsIcon,
   ProjectsIcon,
+  SettingsIcon,
   SignOutIcon,
 } from "./components/icons";
 import { useAsync } from "./hooks";
@@ -20,10 +21,11 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import EquipmentPage from "./pages/EquipmentPage";
 import { LocationsPage, LocationDetailPage } from "./pages/LocationsPage";
 import FeedbackPage from "./pages/FeedbackPage";
-import type { ProjectSummary } from "./types";
+import SettingsPage from "./pages/SettingsPage";
+import type { ProjectSummary, User } from "./types";
 
 export default function App() {
-  const { user, signIn, signOut } = useSession();
+  const { user, signIn, signOut, refresh } = useSession();
 
   return (
     <Routes>
@@ -34,7 +36,11 @@ export default function App() {
       <Route
         path="/*"
         element={
-          user ? <Shell user={user} onSignOut={signOut} /> : <Navigate to="/login" replace />
+          user ? (
+            <Shell user={user} onSignOut={signOut} onUserChanged={refresh} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
         }
       />
     </Routes>
@@ -45,7 +51,15 @@ export default function App() {
  * The signed-in shell: the nav sidebar on the reading edge, a thin top bar
  * over the main pane, and the routes.
  * ===================================================================== */
-function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
+function Shell({
+  user,
+  onSignOut,
+  onUserChanged,
+}: {
+  user: User;
+  onSignOut: () => void;
+  onUserChanged: (user: User) => void;
+}) {
   const projects = useAsync(() => api.projects.list(), []);
   const items = useAsync(() => api.items.list(), []);
   const locations = useAsync(() => api.locations.list(), []);
@@ -59,8 +73,8 @@ function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
   }, [projects.reload, items.reload, locations.reload, feedback.reload]);
 
   const shell = useMemo(
-    () => ({ user, projects, items, locations, feedback, reloadAll }),
-    [user, projects, items, locations, feedback, reloadAll],
+    () => ({ user, projects, items, locations, feedback, reloadAll, refresh: onUserChanged }),
+    [user, projects, items, locations, feedback, reloadAll, onUserChanged],
   );
 
   // Archived projects are out of sight on the list, so they are out of the
@@ -108,17 +122,26 @@ function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
           </nav>
 
           <div className="sidebar-footer">
-            {/* The role is the only thing the footer has no room to spell out. */}
-            <span className="avatar" title={t.auth.role} aria-hidden="true">
-              {initials(user)}
+            <span className="avatar" title={t.users.roles[user.role]} aria-hidden="true">
+              {initials(user.username)}
             </span>
             <div className="user">
-              <div className="user-name">{user}</div>
-              <div className="user-role">{t.auth.role}</div>
+              <div className="user-name">{user.full_name || user.username}</div>
+              <div className="user-role">{t.users.roles[user.role]}</div>
             </div>
+            {/* Settings and sign-out are the two things you do *to* the
+                session rather than inside it, so they share its corner. */}
+            <NavLink
+              to="/settings"
+              className={({ isActive }) => `footer-btn${isActive ? " active" : ""}`}
+              title={t.nav.settings}
+              aria-label={t.nav.settings}
+            >
+              <SettingsIcon />
+            </NavLink>
             <button
               type="button"
-              className="sign-out"
+              className="footer-btn"
               title={t.shell.signOut}
               aria-label={t.shell.signOut}
               onClick={onSignOut}
@@ -147,11 +170,14 @@ function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
               <Route path="/locations" element={<LocationsPage />} />
               <Route path="/locations/:locationId" element={<LocationDetailPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
+              {/* One component behind both tabs — see SettingsPage. */}
+              <Route path="/settings/*" element={<SettingsPage />} />
               {/* The units routes moved to /locations when it became a screen of its own. */}
               <Route path="/units" element={<Navigate to="/locations" replace />} />
               <Route path="/units/:locationId" element={<Navigate to="/locations" replace />} />
-              {/* Settings was split up: equipment, locations and statuses are each managed on their own screen now. */}
-              <Route path="/settings" element={<Navigate to="/equipment" replace />} />
+              {/* Equipment, locations and statuses each moved out to a screen
+                  of their own; what is left under Settings is users and the
+                  activity log. */}
             </Routes>
           </main>
         </div>
@@ -175,13 +201,17 @@ function Breadcrumb({ projects }: { projects: ProjectSummary[] | null }) {
     section === "equipment" ? t.nav.equipment
     : section === "locations" ? t.nav.locations
     : section === "feedback" ? t.nav.feedback
+    : section === "settings" ? t.nav.settings
     : t.nav.projects;
 
   // Only the project screen has a leaf: its name comes off the list the shell
   // already fetched rather than a second request, so while that list is still
   // in flight the crumb is just the section and fills in when it lands.
-  const leaf = project
-    ? ((projects ?? []).find((p) => p.id === project.params.projectId)?.name ?? "")
+  const leaf =
+    project ? ((projects ?? []).find((p) => p.id === project.params.projectId)?.name ?? "")
+    : section === "settings" ?
+      pathname.endsWith("/activity") ? t.settings.tabs.activity
+      : t.settings.tabs.users
     : "";
 
   return (

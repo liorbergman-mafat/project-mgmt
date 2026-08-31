@@ -111,3 +111,35 @@ export interface ProjectDetail {
   loans: Loan[];
   feedback: Feedback[];
 }
+
+/** admin / user is a label the UI shows — the API cannot enforce it. See auth.ts. */
+export type UserRole = "admin" | "user";
+
+export interface User {
+  id: string;
+  username: string;
+  full_name: string | null;
+  role: UserRole;
+  is_active: boolean;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * One recorded action, as the "פעולות" screen reads it.
+ *
+ * `action` and `entity` are stable keys ("create", "locations") that i18n
+ * turns into Hebrew — nothing technical ever reaches the screen. `actor` and
+ * `label` are snapshots from when it happened, so an entry still reads
+ * correctly after the record it describes has been deleted.
+ */
+export interface ActivityEntry {
+  id: string;
+  actor: string | null;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  label: string | null;
+  created_at: string;
+}

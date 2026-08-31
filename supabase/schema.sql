@@ -237,3 +237,58 @@ alter table contacts      enable row level security;
 alter table items         enable row level security;
 alter table loans         enable row level security;
 alter table feedback      enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- users — who may sign in, managed from the Settings → משתמשים screen.
+--
+-- Replaces the two credential pairs that used to be hardcoded in the frontend
+-- bundle. Only the hash is stored (see backend/app/security.py); the plaintext
+-- password never reaches the database, and the API never returns the hash.
+--
+-- `role` is a label the UI shows, not an enforced permission: the API has no
+-- session of its own yet, so it cannot tell an admin's request from anyone
+-- else's. `is_active` *is* enforced — a disabled user is refused at sign-in.
+-- ---------------------------------------------------------------------------
+create table if not exists users (
+    id            uuid primary key default gen_random_uuid(),
+    username      text        not null unique,
+    full_name     text,
+    role          text        not null default 'user'
+                              check (role in ('admin', 'user')),
+    is_active     boolean     not null default true,
+    password_hash text        not null,
+    last_login_at timestamptz,
+    created_at    timestamptz not null default now(),
+    updated_at    timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
+-- activity_log — one row per change made through the API, written by the
+-- middleware in backend/app/activity.py rather than by each router.
+--
+-- `action` and `entity` are stable keys ("create", "locations", …) that the
+-- frontend renders as Hebrew; `actor` and `label` are *snapshots* of the
+-- username and of the record's name at the time, deliberately not foreign
+-- keys — the log must still read correctly after the row it describes is
+-- deleted or the user who did it is renamed.
+-- ---------------------------------------------------------------------------
+create table if not exists activity_log (
+    id         uuid primary key default gen_random_uuid(),
+    actor      text,
+    action     text        not null,
+    entity     text        not null,
+    entity_id  uuid,
+    label      text,
+    created_at timestamptz not null default now()
+);
+
+create index if not exists activity_log_created_at_idx on activity_log(created_at desc);
+create index if not exists activity_log_actor_idx      on activity_log(actor);
+
+drop trigger if exists users_set_updated_at on users;
+create trigger users_set_updated_at
+    before update on users
+    for each row execute function set_updated_at();
+
+alter table users        enable row level security;
+alter table activity_log enable row level security;

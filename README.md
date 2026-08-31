@@ -7,7 +7,8 @@ each borrowing location gave — with the time it was given.
 
 - **Backend:** Python / FastAPI, talking to Supabase (Postgres)
 - **Frontend:** React + TypeScript + Vite, Hebrew RTL interface
-- **Auth:** none yet — see [Security](#security) before putting this on a network
+- **Auth:** a real user list with hashed passwords, but no API session yet — see
+  [Security](#security) before putting this on a network
 
 ---
 
@@ -35,6 +36,8 @@ projects ──┬─< items >── type_id / model_id / status_id / location_i
 | `items`          | One row per physical item, owned by exactly one project. Type/Model/Status/Location + a free-text serial. |
 | `loans`          | "Item X was loaned to location Y under project Z", with dates + status — separate from the item's own status/location. |
 | `feedback`       | What a location said, when they said it, optionally about one loan.         |
+| `users`          | Who may sign in. Stores only a password hash; managed from Settings → משתמשים. |
+| `activity_log`   | One row per change made through the API, written by middleware. Read on Settings → פעולות. |
 
 ---
 
@@ -46,6 +49,11 @@ In the Supabase dashboard → **SQL Editor** → **New query**, paste and run:
 
 1. `supabase/schema.sql` — tables, indexes, triggers, RLS
 2. `supabase/seed.sql` — *optional* demo rows, so the UI isn't empty on first run
+
+`schema.sql` is idempotent, so re-run it after pulling changes that add tables —
+`users` and `activity_log` came in that way. The first sign-in on an empty
+`users` table creates two admin accounts (see `backend/app/routers/users.py`);
+change their passwords from Settings → משתמשים straight after.
 
 ### 2. Configure the backend
 
@@ -105,11 +113,17 @@ browser only ever talks to one origin.
 
 ## Using it
 
-The sign-in screen is a **placeholder** — any non-empty pair gets you in. See
-[Security](#security).
+Sign in with a username and password from the `users` table — see
+[Security](#security) for what that does and does not protect.
 
-The sidebar on the right holds the four screens; your name and the sign-out
-button sit at the foot of it, and the bar across the top says where you are.
+The sidebar on the right holds the four screens; your name, a gear for
+**הגדרות**, and the sign-out button sit at the foot of it, and the bar across
+the top says where you are. Settings has two tabs:
+
+- **משתמשים** — add, view and edit the people who may sign in, and set anyone's
+  password. A disabled user stays on the list but is refused at sign-in.
+- **פעולות** — every change anyone has made, in Hebrew: when, who, what kind of
+  action, and which record. Written automatically; nothing can edit it.
 
 1. **הגדרות** — set up the dropdown option lists once, across three tabs:
    - **ציוד** — the catalogue: every Type, with its Models nested under it.
@@ -174,25 +188,41 @@ Interactive docs at http://127.0.0.1:8000/docs.
 | `GET/POST`         | `/api/loans`                    | Filter by `project_id`, `location_id`, `item_id`, `status` |
 | `POST`             | `/api/loans/{id}/return`        | Mark returned, stamped now               |
 | `GET/POST`         | `/api/feedback`                 | Filter by `project_id`, `location_id`, `loan_id` |
-| `GET/POST/PATCH/DELETE` | `/api/item-types`, `/api/item-models`, `/api/item-statuses`, `/api/locations` | Dropdown option lists, managed from Settings |
+| `GET/POST/PATCH/DELETE` | `/api/item-types`, `/api/item-models`, `/api/item-statuses`, `/api/locations` | Dropdown option lists, managed from their own screens |
+| `POST`             | `/api/auth/login`               | Check a username/password pair; returns the user |
+| `GET/POST/PATCH/DELETE` | `/api/users`               | Who may sign in. Never returns a password hash |
+| `POST`             | `/api/users/{id}/password`      | Set a password outright                  |
+| `GET`              | `/api/activity`                 | The activity log, newest first (`?limit=`) |
 
 ---
 
 ## Security
 
-This is currently a **single-user local app with no authentication**. Anyone who
-can reach port 5173 or 8000 has full read/write access.
+**The API has no session, so it authorises nobody.** Anyone who can reach port
+5173 or 8000 has full read/write access; calling the API directly bypasses the
+login screen entirely.
 
-The login screen is a UI placeholder for a real Supabase Auth flow: it accepts
-any non-empty credentials, keeps a flag in `sessionStorage`, and only decides
-which screen to render (`frontend/src/auth.ts`). It stops nobody — the API is
-still open, and calling it directly bypasses the screen entirely.
+Sign-in itself is real as far as it goes: `POST /api/auth/login` checks the pair
+against the `users` table, which stores only a PBKDF2-SHA256 hash
+(`backend/app/security.py`). What it produces is a session in the *browser*
+(`frontend/src/auth.ts`) that decides which screen to render — not a token the
+API asks for. Two consequences worth being explicit about:
+
+- A user's `role` (מנהל / משתמש) is a **label the screens show**, not a
+  permission. Anyone signed in can open Settings and manage users.
+- `is_active` *is* enforced, but only at sign-in — it cannot end a session
+  already open, and it does not stop a direct API call.
+
+The activity log records who did what by trusting an `X-Actor` header the
+frontend sets. It is an honest record of ordinary use, not evidence: anything
+that can call the API can put any name in that header.
 
 What is already in place:
 
 - RLS is enabled on every table with **no policies**, so the public `anon` key
   can read nothing. The database is only reachable through this API.
 - The `service_role` key lives only in `backend/.env`, server-side.
+- Passwords are hashed, never stored or returned in plaintext.
 
 Before this goes anywhere beyond your own machine, it needs Supabase Auth,
 per-user RLS policies, and HTTPS. Don't bind it to `0.0.0.0` until then.

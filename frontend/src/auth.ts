@@ -1,85 +1,88 @@
 import { useCallback, useState } from "react";
+import { setApiActor } from "./api";
+import type { User } from "./types";
 
 /**
- * PLACEHOLDER sign-in.
+ * The signed-in session.
  *
- * The app has no authentication backend (see the Security section of the repo
- * README): the API is open and every request reaches it unauthenticated. This
- * module only decides which screen to render, so the login view in the design
- * has something to drive.
+ * Credentials are no longer in the bundle: the username/password pair is
+ * checked by the API against the `users` table, which stores only a hash (see
+ * backend/app/security.py), and the user record it returns is what this module
+ * keeps. Everything the settings screen manages — adding people, editing them,
+ * changing a password — flows through that same table.
  *
- * The credential list below narrows the login screen to two known people, but
- * it grants **no** security: the pairs ship inside the browser bundle and are
- * readable by anyone who opens it, and nothing stops a direct call to the API.
- * It is a gate on the UI, not on the data.
- *
- * When Supabase Auth is wired up, replace `verify` and the session helpers with
- * the real session; the components above them do not need to change.
+ * It is still a gate on the UI, not on the data. The API has no session of its
+ * own: it accepts any request that reaches it, signed in or not, and `role` is
+ * therefore a label the screens show rather than a permission anything
+ * enforces. `is_active` *is* enforced, at sign-in. When Supabase Auth is wired
+ * up, this is the module that changes; the components above it are not.
  */
-
-/** The people allowed past the login screen. */
-const USERS: ReadonlyArray<{ username: string; password: string }> = [
-  { username: "ליאור ברגמן", password: "ליאור ברגמן" },
-  { username: "חבר לבנוני", password: "Hever9764!" },
-];
-
-/** Collapses runs of whitespace so a stray double space still matches. */
-function normalize(value: string): string {
-  return value.trim().replace(/\s+/gu, " ");
-}
-
-/**
- * Checks a username/password pair against the list above.
- *
- * Returns the canonical username on success — so the session and the nav bar
- * show the spelling from `USERS`, not whatever casing was typed — or `null`.
- */
-export function verify(username: string, password: string): string | null {
-  const typed = normalize(username);
-  const match = USERS.find(
-    (user) => user.username.localeCompare(typed, undefined, { sensitivity: "accent" }) === 0,
-  );
-  return match && match.password === password ? match.username : null;
-}
+export type SessionUser = User;
 
 const SESSION_KEY = "loan-manager.session-user";
 
 /** sessionStorage throws in some privacy modes, so every access is guarded. */
-function read(): string | null {
+function read(): SessionUser | null {
   try {
     const stored = sessionStorage.getItem(SESSION_KEY);
-    // A hand-edited value should not open the app to a name nobody granted.
-    return USERS.some((user) => user.username === stored) ? stored : null;
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as SessionUser;
+    // A hand-edited value should not put a half-built user into the shell.
+    return parsed && typeof parsed.id === "string" && typeof parsed.username === "string"
+      ? parsed
+      : null;
   } catch {
     return null;
   }
 }
 
-export function useSession() {
-  const [user, setUser] = useState<string | null>(read);
+function write(user: SessionUser | null): void {
+  try {
+    if (user) sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    else sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Not being able to persist it only costs the user a re-login on reload.
+  }
+}
 
-  const signIn = useCallback((username: string) => {
-    try {
-      sessionStorage.setItem(SESSION_KEY, username);
-    } catch {
-      // Not being able to persist it only costs the user a re-login on reload.
-    }
-    setUser(username);
+// Set once at import, before anything renders: a reload restores the session
+// from storage, and the very first request out has to already carry the name
+// the activity log will credit.
+setApiActor(read()?.username ?? null);
+
+export function useSession() {
+  const [user, setUser] = useState<SessionUser | null>(read);
+
+  const signIn = useCallback((next: SessionUser) => {
+    write(next);
+    setApiActor(next.username);
+    setUser(next);
   }, []);
 
   const signOut = useCallback(() => {
-    try {
-      sessionStorage.removeItem(SESSION_KEY);
-    } catch {
-      // Nothing to clean up.
-    }
+    write(null);
+    setApiActor(null);
     setUser(null);
   }, []);
 
-  return { user, signIn, signOut };
+  /**
+   * Refresh the session from a freshly saved user record — so renaming
+   * yourself, or changing your own role, shows up in the nav bar at once
+   * instead of after the next sign-in.
+   */
+  const refresh = useCallback((next: SessionUser) => {
+    setUser((current) => {
+      if (!current || current.id !== next.id) return current;
+      write(next);
+      setApiActor(next.username);
+      return next;
+    });
+  }, []);
+
+  return { user, signIn, signOut, refresh };
 }
 
-/** "l.bergman" → "L.B" — the two-letter monogram in the nav bar avatar. */
+/** "ליאור ברגמן" → "ל.ב" — the two-letter monogram in the nav bar avatar. */
 export function initials(username: string): string {
   const parts = username.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   return parts

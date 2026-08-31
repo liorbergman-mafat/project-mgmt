@@ -164,3 +164,57 @@ export function WarningIcon({ size = 16 }: { size?: number }) {
     </Glyph>
   );
 }
+
+/** Gear — the settings entry point at the foot of the nav bar. */
+export function SettingsIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Glyph size={size} width={1.8}>
+      <circle cx="12" cy="12" r="3.1" />
+      <path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a1.9 1.9 0 1 1-2.7 2.7l-.05-.06a1.6 1.6 0 0 0-1.78-.32 1.6 1.6 0 0 0-1 1.47v.17a1.9 1.9 0 1 1-3.8 0v-.09a1.6 1.6 0 0 0-1.05-1.46 1.6 1.6 0 0 0-1.77.32l-.06.06a1.9 1.9 0 1 1-2.7-2.7l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-1H3.6a1.9 1.9 0 1 1 0-3.8h.09a1.6 1.6 0 0 0 1.46-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a1.9 1.9 0 1 1 2.7-2.7l.06.06a1.6 1.6 0 0 0 1.77.32H9.4a1.6 1.6 0 0 0 1-1.47V3.6a1.9 1.9 0 1 1 3.8 0v.09a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a1.9 1.9 0 1 1 2.7 2.7l-.06.06a1.6 1.6 0 0 0-.32 1.77v.01a1.6 1.6 0 0 0 1.47 1h.17a1.9 1.9 0 1 1 0 3.8h-.09a1.6 1.6 0 0 0-1.46 1Z" />
+    </Glyph>
+  );
+}
+
+/** Two people — the users screen. */
+export function UsersIcon({ size = 19 }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <path d="M15.5 20v-1.8a3.6 3.6 0 0 0-3.6-3.6H6.6A3.6 3.6 0 0 0 3 18.2V20" />
+      <circle cx="9.25" cy="7.4" r="3.4" />
+      <path d="M21 20v-1.8a3.6 3.6 0 0 0-2.7-3.48" />
+      <path d="M16 4.13a3.6 3.6 0 0 1 0 6.55" />
+    </Glyph>
+  );
+}
+
+/** A clock over a list — the record of what happened, and when. */
+export function ActivityIcon({ size = 19 }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <path d="M4 6h9M4 11h6M4 16h5" />
+      <circle cx="16.5" cy="15.5" r="5.5" />
+      <path d="M16.5 13v2.6l1.7 1.1" />
+    </Glyph>
+  );
+}
+
+/** A key — changing someone's password. */
+export function KeyIcon({ size = 15 }: { size?: number }) {
+  return (
+    <Glyph size={size} width={1.8}>
+      <circle cx="15.5" cy="8.5" r="4.5" />
+      <path d="m12.3 11.7-8.8 8.8" />
+      <path d="m6.5 17.5 2.2 2.2M9 15l2.2 2.2" />
+    </Glyph>
+  );
+}
+
+/** Pencil — editing a row in place. */
+export function EditIcon({ size = 15 }: { size?: number }) {
+  return (
+    <Glyph size={size} width={1.8}>
+      <path d="M12 20h8" />
+      <path d="M16.4 4.6a2.1 2.1 0 0 1 3 3L8.5 18.5l-4 1 1-4Z" />
+    </Glyph>
+  );
+}

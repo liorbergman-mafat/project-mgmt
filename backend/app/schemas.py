@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 ProjectStatus = Literal["active", "completed", "archived"]
 LoanStatus = Literal["loaned", "returned", "lost"]
+UserRole = Literal["admin", "user"]
 
 
 # --------------------------------------------------------------------------
@@ -271,3 +272,68 @@ class ProjectDetail(BaseModel):
     items: list[Item]
     loans: list[Loan]
     feedback: list[Feedback]
+
+
+# --------------------------------------------------------------------------
+# Users — who may sign in. Managed from the Settings screen.
+# --------------------------------------------------------------------------
+class UserCreate(BaseModel):
+    username: str
+    full_name: Optional[str] = None
+    role: UserRole = "user"
+    is_active: bool = True
+    # Write-only: hashed on arrival, and never echoed back by any response.
+    password: str
+
+
+class UserUpdate(BaseModel):
+    """Everything but the password, which has its own endpoint."""
+
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+
+class PasswordChange(BaseModel):
+    password: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class User(BaseModel):
+    """A user as the UI sees them — the password hash never leaves the server."""
+
+    id: UUID
+    username: str
+    full_name: Optional[str] = None
+    role: UserRole
+    is_active: bool
+    last_login_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+# --------------------------------------------------------------------------
+# Activity log — written by the middleware in activity.py, read by the
+# "פעולות" screen.
+# --------------------------------------------------------------------------
+class ActivityEntry(BaseModel):
+    """
+    One recorded change.
+
+    `action` and `entity` are stable keys the frontend turns into Hebrew;
+    `actor` and `label` are snapshots taken when it happened, so the entry
+    still reads correctly once the record it describes is gone.
+    """
+
+    id: UUID
+    actor: Optional[str] = None
+    action: str
+    entity: str
+    entity_id: Optional[UUID] = None
+    label: Optional[str] = None
+    created_at: datetime

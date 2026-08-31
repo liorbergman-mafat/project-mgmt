@@ -1,4 +1,5 @@
 import type {
+  ActivityEntry,
   Contact,
   Feedback,
   Item,
@@ -10,17 +11,32 @@ import type {
   Project,
   ProjectDetail,
   ProjectSummary,
+  User,
 } from "./types";
+
+/**
+ * Who the API should credit the next change to.
+ *
+ * The backend has no session of its own (see auth.ts), so the signed-in
+ * username rides along on every request and is what the activity log records.
+ * Header values have to be latin-1 and every username here is Hebrew, so it
+ * goes out percent-encoded and is decoded server-side.
+ */
+let actor: string | null = null;
+
+export function setApiActor(username: string | null): void {
+  actor = username;
+}
 
 /**
  * Vite proxies /api to FastAPI on port 8000 (see vite.config.ts), so the
  * browser only ever talks to its own origin.
  */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (actor) headers["X-Actor"] = encodeURIComponent(actor);
+
+  const response = await fetch(`/api${path}`, { ...init, headers });
 
   if (!response.ok) {
     let detail = `שגיאת שרת (${response.status})`;
@@ -122,5 +138,23 @@ export const api = {
       request<Feedback[]>(`/feedback${projectId ? `?project_id=${projectId}` : ""}`),
     create: (body: Record<string, unknown>) => post<Feedback>("/feedback", body),
     remove: (id: string) => del(`/feedback/${id}`),
+  },
+  auth: {
+    /** Throws with the server's Hebrew message when the pair is refused. */
+    login: (username: string, password: string) =>
+      post<User>("/auth/login", { username, password }),
+  },
+  users: {
+    list: () => request<User[]>("/users"),
+    create: (body: Record<string, unknown>) => post<User>("/users", body),
+    update: (id: string, body: Record<string, unknown>) => patch<User>(`/users/${id}`, body),
+    /** Sets the password outright — there is no "current password" step. */
+    setPassword: (id: string, password: string) =>
+      post<User>(`/users/${id}/password`, { password }),
+    remove: (id: string) => del(`/users/${id}`),
+  },
+  /** Read-only: entries are written by the API itself, never by a screen. */
+  activity: {
+    list: (limit?: number) => request<ActivityEntry[]>(`/activity${limit ? `?limit=${limit}` : ""}`),
   },
 };
