@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useMatch } from "react-router-dom";
 import { api } from "./api";
 import { initials, useSession } from "./auth";
-import { Logo, ParentMark } from "./components/Logo";
+import { ParentMark } from "./components/ParentMark";
 import {
   EquipmentIcon,
   FeedbackIcon,
@@ -71,9 +71,9 @@ function Shell({ user, onSignOut }: { user: string; onSignOut: () => void }) {
     <ShellProvider value={shell}>
       <div className="app">
         <aside className="sidebar">
-          {/* The mark carries no wordmark, so the name is set in text. */}
+          {/* The app sets its name in text — the only mark it shows is the
+              מנהלת's, in the far corner of the top bar. */}
           <div className="sidebar-brand">
-            <Logo />
             <div>
               <div className="brand-name">{t.appName}</div>
               <div className="brand-sub">{t.auth.title}</div>

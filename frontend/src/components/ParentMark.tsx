@@ -1,34 +1,22 @@
 import { t } from "../i18n";
 
 /**
- * חברון logo.
+ * The מנהלת's mark (AI&Autonomy) — the one logo the app shows.
  *
- * `frontend/public/logo.png` is the mark as handed over with the restyle: the
- * shield at 423×480, its white ground removed with an edge flood-fill so the
- * white panels *inside* the shield survive. Because the ground is transparent
- * rather than white, the one file works on the dark sidebar, the dark login
- * canvas and the white login column alike — no blend mode needed.
+ * `frontend/public/parent-mark.png` is the lockup with its wordmark cropped
+ * off and its ground removed, so it reads on the white top bar and on the dark
+ * login canvas alike. `parent-logo.png` beside it keeps the full lockup, with
+ * the wordmark, for light-background contexts (print, exports).
  *
- * The mark carries no wordmark, so callers that need the name set it in text
- * alongside — see the sidebar's `.sidebar-brand` and the login lockup. Size
- * comes from CSS at each of those sites, so the same element can be 28px in
- * the sidebar and 190px on the login art.
+ * The חברון shield is deliberately gone: the app sets its own name in text
+ * (the sidebar's `.sidebar-brand`, the login lockup) rather than in a mark.
+ * Size comes from CSS at each site, so the same element is 30px in the top bar
+ * and 210px on the login art.
  */
-const SRC = "/logo.png";
-
-export function Logo({ className = "logo" }: { className?: string }) {
-  return <img className={className} src={SRC} alt="" width={423} height={480} />;
-}
-
-/**
- * The parent organisation's mark (AI&Autonomy), shown small and uncaptioned in
- * the far corner of the top bar. `parent-logo.png` beside it keeps the full
- * lockup for light-background contexts (print, exports).
- */
-export function ParentMark() {
+export function ParentMark({ className = "parent-mark" }: { className?: string }) {
   return (
     <img
-      className="parent-mark"
+      className={className}
       src="/parent-mark.png"
       alt=""
       title={t.shell.parentOrg}

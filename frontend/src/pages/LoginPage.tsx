@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { verify } from "../auth";
-import { Logo } from "../components/Logo";
+import { ParentMark } from "../components/ParentMark";
 import { ErrorBanner } from "../components/ui";
 import { t } from "../i18n";
 
@@ -39,13 +39,9 @@ export default function LoginPage({ onSignIn }: { onSignIn: (username: string) =
     <div className="login">
       <div className="login-form-pane">
         <form className="login-box" onSubmit={submit}>
-          {/* The mark carries no wordmark, so the name is set in text. */}
           <div className="login-brand">
-            <Logo />
-            <div>
-              <div className="login-brand-name">{t.appName}</div>
-              <div className="login-brand-sub">{t.auth.title}</div>
-            </div>
+            <div className="login-brand-name">{t.appName}</div>
+            <div className="login-brand-sub">{t.auth.title}</div>
           </div>
 
           <p className="login-sub">{t.auth.subtitle}</p>
@@ -82,10 +78,9 @@ export default function LoginPage({ onSignIn }: { onSignIn: (username: string) =
         </form>
       </div>
 
-      {/* Two radial washes behind the mark — the teal and oxblood halves of
-          the shield, thrown onto the panel behind it. */}
+      {/* Two radial washes behind the מנהלת's mark. */}
       <div className="login-art" aria-hidden="true">
-        <Logo />
+        <ParentMark className="login-art-mark" />
       </div>
     </div>
   );

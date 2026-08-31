@@ -1,0 +1,14 @@
+# Keep the serverless bundle and the build context small. Most of this is
+# already gitignored; listed here so a local `vercel deploy` matches CI.
+backend/.venv/
+backend/smoke_test.py
+frontend/node_modules/
+frontend/dist/
+frontend/preview-mock-api.ts
+frontend/preview-locations.json
+frontend/vite.preview.config.ts
+scripts/
+supabase/
+run-dev.ps1
+*.ps1
+.DS_Store

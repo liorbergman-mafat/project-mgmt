@@ -1,7 +1,8 @@
 /* ============================================================================
  * חברון — design tokens.
- * Palette is derived from the app logo (public/logo.png): the teal half of the
- * shield and its oxblood half.
+ * Palette is derived from the חברון shield the app was branded with: the teal
+ * half of it and its oxblood half. The shield itself is no longer shown — the
+ * only mark on screen is the מנהלת's — but the colours it set stay.
  * ========================================================================= */
 
 :root {
@@ -75,21 +76,21 @@
   --scrim: rgba(9, 26, 32, .52);
 
   /* Layout */
-  --sidebar-w: 234px;
-  --topbar-h: 46px;
-  --content-pad: 18px 22px 44px;
+  --sidebar-w: 258px;
+  --topbar-h: 52px;
+  --content-pad: 22px 26px 48px;
 
   /* Type — Heebo, already loaded in frontend/index.html */
   --font: Heebo, "Segoe UI", sans-serif;
-  --fs-h1: 20px; /* page titles, weight 700, letter-spacing -.2px */
-  --fs-stat: 22px; /* stat tile values, weight 700, tabular-nums */
-  --fs-modal-title: 15px; /* weight 700 */
-  --fs-body: 13px; /* table cells, buttons, form controls */
-  --fs-sub: 12.5px; /* subtitles, secondary cells, chips */
-  --fs-label: 12px; /* form field labels, weight 600 */
-  --fs-th: 11.5px; /* table headers, weight 600, --muted */
-  --fs-meta: 11.5px; /* timestamps, counts */
-  --fs-pill: 11px; /* weight 600 */
+  --fs-h1: 22px; /* page titles, weight 700, letter-spacing -.2px */
+  --fs-stat: 26px; /* stat tile values, weight 700, tabular-nums */
+  --fs-modal-title: 16px; /* weight 700 */
+  --fs-body: 14px; /* table cells, buttons, form controls */
+  --fs-sub: 13.5px; /* subtitles, secondary cells, chips */
+  --fs-label: 13px; /* form field labels, weight 600 */
+  --fs-th: 12.5px; /* table headers, weight 600, --muted */
+  --fs-meta: 12.5px; /* timestamps, counts */
+  --fs-pill: 12px; /* weight 600 */
 }
 
 /* ============================================================================
@@ -228,23 +229,8 @@ table {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 13px 14px;
+  padding: 15px 16px;
   border-bottom: 1px solid var(--on-dark-hover);
-}
-
-/* Sized by whichever lockup it sits in; this is the fallback. */
-.logo {
-  display: block;
-  width: 28px;
-  height: 32px;
-  object-fit: contain;
-}
-
-.sidebar-brand .logo {
-  width: 28px;
-  height: 32px;
-  object-fit: contain;
-  flex: 0 0 28px;
 }
 
 .sidebar-brand > div {
@@ -252,14 +238,14 @@ table {
 }
 
 .brand-name {
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 700;
   color: #fff;
   line-height: 1.15;
 }
 
 .brand-sub {
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--on-dark-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -270,7 +256,7 @@ table {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 10px 8px;
+  padding: 12px 9px;
   flex: 1;
   overflow-y: auto;
 }
@@ -279,7 +265,7 @@ table {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 7px 9px;
+  padding: 9px 11px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-body);
   font-weight: 500;
@@ -303,7 +289,7 @@ table {
 
 .nav-icon {
   display: flex;
-  flex: 0 0 17px;
+  flex: 0 0 19px;
 }
 
 .nav-label {
@@ -324,7 +310,7 @@ table {
 }
 
 .sidebar-footer {
-  padding: 10px 12px;
+  padding: 12px 13px;
   border-top: 1px solid var(--on-dark-hover);
   display: flex;
   align-items: center;
@@ -332,9 +318,9 @@ table {
 }
 
 .avatar {
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   border-radius: var(--radius-sm);
   background: var(--oxblood);
   color: #fff;
@@ -359,7 +345,7 @@ table {
 }
 
 .user-role {
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--on-dark-muted);
 }
 
@@ -395,7 +381,7 @@ table {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 18px;
+  padding: 0 22px;
 }
 
 .crumb {
@@ -421,7 +407,7 @@ table {
 }
 
 .parent-mark {
-  height: 26px;
+  height: 30px;
   object-fit: contain;
   flex: 0 0 auto;
 }
@@ -525,8 +511,8 @@ table {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 12px;
+  height: 36px;
+  padding: 0 14px;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   font-size: var(--fs-sub);
@@ -617,8 +603,8 @@ table {
 
 /* A shorter button, for the inside of a card or a panel. */
 .btn-sm {
-  height: 30px;
-  padding: 0 11px;
+  height: 34px;
+  padding: 0 13px;
 }
 
 .link-btn {
@@ -660,8 +646,8 @@ table {
 }
 
 .icon-btn {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -718,7 +704,7 @@ table {
 }
 
 .stat-card {
-  padding: 11px 13px;
+  padding: 13px 16px;
   min-width: 0;
 }
 
@@ -743,7 +729,7 @@ table {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 11px 14px;
   border-bottom: 1px solid var(--border);
   background: var(--subtle);
 }
@@ -767,7 +753,7 @@ table {
 }
 
 .card-foot {
-  padding: 9px 12px;
+  padding: 11px 14px;
   border-top: 1px solid var(--border);
   background: var(--subtle);
   font-size: var(--fs-th);
@@ -776,7 +762,7 @@ table {
 }
 
 thead th {
-  padding: 8px 12px;
+  padding: 10px 14px;
   font-size: var(--fs-th);
   font-weight: 600;
   color: var(--muted);
@@ -796,7 +782,7 @@ thead th.shrink {
 }
 
 tbody td {
-  padding: 9px 12px;
+  padding: 11px 14px;
   font-size: var(--fs-body);
   color: var(--body);
   border-bottom: 1px solid var(--border-row);
@@ -873,7 +859,7 @@ tr.group-row:hover {
 }
 
 tr.group-row td {
-  padding: 7px 12px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--border-inset);
   font-size: var(--fs-sub);
   color: var(--muted);
@@ -908,7 +894,7 @@ tr.group-row td {
 /* The unit name is indented under its brigade header. */
 .row-indent {
   display: inline-block;
-  padding-inline-start: 20px;
+  padding-inline-start: 22px;
 }
 
 /* ============================================================================
@@ -917,7 +903,7 @@ tr.group-row td {
 
 .pill {
   display: inline-block;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-pill);
   font-weight: 600;
@@ -965,8 +951,8 @@ tr.group-row td {
 }
 
 .chip {
-  padding: 4px 10px;
-  border-radius: 11px;
+  padding: 5px 12px;
+  border-radius: 13px;
   font-size: var(--fs-label);
   font-weight: 500;
   background: var(--panel);
@@ -996,7 +982,7 @@ tr.group-row td {
 }
 
 .segmented button {
-  padding: 4px 12px;
+  padding: 5px 14px;
   border: 0;
   border-radius: 2px;
   font-size: var(--fs-sub);
@@ -1023,7 +1009,7 @@ tr.group-row td {
 }
 
 .tab {
-  padding: 8px 12px;
+  padding: 9px 14px;
   background: transparent;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -1087,8 +1073,8 @@ tr.group-row td {
 }
 
 .split-equipment > .cat-card {
-  flex: 1 1 250px;
-  max-width: 290px;
+  flex: 1 1 270px;
+  max-width: 324px;
 }
 
 .split-equipment > .main-pane {
@@ -1102,7 +1088,7 @@ tr.group-row td {
 }
 
 .panel-head {
-  padding: 11px 13px;
+  padding: 13px 15px;
   border-bottom: 1px solid var(--border);
   background: var(--subtle);
 }
@@ -1116,7 +1102,7 @@ tr.group-row td {
 .panel-title {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--ink);
 }
@@ -1134,7 +1120,7 @@ tr.group-row td {
 }
 
 .panel-body {
-  padding: 11px 13px;
+  padding: 13px 15px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1189,7 +1175,7 @@ tr.group-row td {
   background: var(--row-hover);
   border: 1px solid var(--border-inset);
   border-radius: var(--radius-sm);
-  padding: 9px 10px;
+  padding: 10px 12px;
 }
 
 .inset-head {
@@ -1229,7 +1215,7 @@ tr.group-row td {
 }
 
 .feedback-card {
-  padding: 11px 13px;
+  padding: 13px 15px;
   /* The 3px leading edge (right, in RTL) encodes the rating at a glance. */
   border-right: 3px solid var(--edge, var(--border-strong));
 }
@@ -1301,14 +1287,14 @@ tr.group-row td {
 }
 
 .rail-card {
-  padding: 11px 13px;
+  padding: 13px 15px;
 }
 
 .rail-card.dark {
   background: var(--brand-900);
   border-color: var(--brand-900);
   color: var(--on-dark);
-  padding: 13px;
+  padding: 15px;
 }
 
 .rail-card.dark .label,
@@ -1318,7 +1304,7 @@ tr.group-row td {
 }
 
 .rail-card.dark .value {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
@@ -1355,7 +1341,7 @@ tr.group-row td {
 }
 
 .bar-track {
-  height: 5px;
+  height: 6px;
   background: var(--border-row);
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -1392,7 +1378,7 @@ tr.group-row td {
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 8px;
+  padding: 9px 10px;
   border: 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -1415,7 +1401,7 @@ tr.group-row td {
 
 .cat-row .chevron {
   display: flex;
-  flex: 0 0 13px;
+  flex: 0 0 15px;
 }
 
 .cat-row .name {
@@ -1436,7 +1422,7 @@ tr.group-row td {
 }
 
 .cat-models {
-  padding: 2px 22px 4px 8px;
+  padding: 2px 24px 4px 8px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -1446,7 +1432,7 @@ tr.group-row td {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
+  padding: 6px 9px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-sub);
   color: var(--body);
@@ -1557,7 +1543,7 @@ tr.group-row td {
 }
 
 .skeleton-bar {
-  height: 11px;
+  height: 12px;
   background: var(--skeleton);
   border-radius: 2px;
   animation: shimmer 1.4s ease-in-out infinite;
@@ -1573,9 +1559,9 @@ tr.group-row td {
 }
 
 .spinner {
-  width: 12px;
-  height: 12px;
-  flex: 0 0 12px;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
   border: 2px solid var(--border-strong);
   border-top-color: var(--brand-700);
   border-radius: 50%;
@@ -1594,13 +1580,13 @@ tr.group-row td {
   background: var(--panel);
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius);
-  padding: 38px 20px;
+  padding: 44px 24px;
   text-align: center;
 }
 
 .empty-icon {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   margin: 0 auto 10px;
   border-radius: var(--radius);
   background: var(--brand-tint);
@@ -1611,7 +1597,7 @@ tr.group-row td {
 }
 
 .empty-title {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -1635,7 +1621,7 @@ tr.group-row td {
   /* The accent sits on the right — the RTL leading edge. */
   border-right: 3px solid var(--danger);
   border-radius: var(--radius);
-  padding: 9px 12px;
+  padding: 11px 14px;
   margin-bottom: 10px;
   flex-wrap: wrap;
 }
@@ -1667,7 +1653,7 @@ tr.group-row td {
   background: var(--brand-tint);
   border: 1px solid var(--brand-tint-border);
   border-radius: var(--radius-sm);
-  padding: 9px 11px;
+  padding: 10px 12px;
 }
 
 .info-note > svg {
@@ -1708,20 +1694,11 @@ tr.group-row td {
 }
 
 .login-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   margin-bottom: 28px;
 }
 
-.login-brand .logo {
-  width: 44px;
-  height: 50px;
-  object-fit: contain;
-}
-
 .login-brand-name {
-  font-size: 22px;
+  font-size: 25px;
   font-weight: 700;
   color: var(--brand-900);
   line-height: 1.1;
@@ -1748,15 +1725,15 @@ tr.group-row td {
 }
 
 .login-fields input {
-  height: 34px;
+  height: 38px;
   padding: 0 10px;
-  font-size: 13.5px;
+  font-size: 14.5px;
 }
 
 .login-fields .btn {
-  height: 36px;
+  height: 40px;
   margin-top: 4px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   width: 100%;
 }
 
@@ -1787,9 +1764,9 @@ tr.group-row td {
     radial-gradient(90% 80% at 85% 90%, rgba(124, 34, 48, .42), transparent 62%);
 }
 
-.login-art .logo {
+.login-art-mark {
   position: relative;
-  width: 190px;
+  width: 210px;
   height: auto;
   opacity: .94;
   filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .4));
@@ -1817,19 +1794,19 @@ tr.group-row td {
   border-radius: var(--radius-modal);
   box-shadow: var(--shadow-modal);
   width: 100%;
-  max-width: 520px;
+  max-width: 560px;
   overflow: hidden;
 }
 
 .modal-wide {
-  max-width: 620px;
+  max-width: 680px;
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -1839,7 +1816,7 @@ tr.group-row td {
 }
 
 .form-body {
-  padding: 16px;
+  padding: 18px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px 14px;
@@ -1889,7 +1866,7 @@ tr.group-row td {
 input,
 select,
 textarea {
-  height: 32px;
+  height: 36px;
   padding: 0 9px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -1930,7 +1907,7 @@ textarea:disabled {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding: 11px 16px;
+  padding: 13px 18px;
   border-top: 1px solid var(--border);
   background: var(--subtle);
 }
@@ -1947,15 +1924,15 @@ textarea:disabled {
 /* --- Confirm ------------------------------------------------------------ */
 
 .confirm-body {
-  padding: 16px;
+  padding: 18px;
   display: flex;
   gap: 11px;
 }
 
 .confirm-icon {
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
   border-radius: var(--radius-sm);
   background: var(--danger-tint);
   color: var(--danger);

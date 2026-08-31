@@ -36,7 +36,7 @@ export const t = {
   shell: {
     signOut: "יציאה",
     /** The parent organisation's mark in the far corner of the top bar. */
-    parentOrg: "מנחת AI&Autonomy",
+    parentOrg: "מנהלת AI&Autonomy",
   },
 
   auth: {

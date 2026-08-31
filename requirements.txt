@@ -1,0 +1,11 @@
+# Dependencies for the Vercel serverless function in api/index.py.
+# Vercel only reads a requirements.txt from the repository root, so this file
+# mirrors backend/requirements.txt minus uvicorn — the serverless runtime
+# provides the server. Keep the two in sync when bumping a version.
+fastapi==0.115.6
+supabase==2.11.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+eval_type_backport==0.4.0
+python-dotenv==1.0.1
+httpx==0.28.1
