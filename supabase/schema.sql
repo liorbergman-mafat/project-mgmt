@@ -1,7 +1,11 @@
 -- ============================================================================
 -- Loan Manager — schema
--- Run this once in the Supabase SQL Editor (Dashboard -> SQL Editor -> New query).
--- Safe to re-run: every statement is idempotent.
+-- Run this in the Supabase SQL Editor (Dashboard -> SQL Editor -> New query).
+--
+-- Safe to re-run: every statement is idempotent, and nothing here drops a
+-- table or deletes a row. Keep it that way — this file gets pasted into a
+-- production SQL editor, so a destructive statement in it is one paste away
+-- from being run against real data.
 -- ============================================================================
 
 create extension if not exists "pgcrypto";
@@ -24,17 +28,24 @@ alter table projects drop column if exists start_date;
 alter table projects drop column if exists end_date;
 
 -- ---------------------------------------------------------------------------
--- Migration: items move from a shared catalogue to per-project records with
--- Type/Model/Status/Location taken from user-managed lookup lists, and units
--- are folded into the more general "locations" concept (a location can be a
--- borrowing unit, a warehouse, etc). This drops the old shapes of these
--- tables. At the time this migration was written the only data affected was
--- disposable demo/test rows, never real loan history.
+-- Migration (ALREADY APPLIED — deliberately left as a comment).
+--
+-- Items once lived in a shared catalogue; they moved to per-project records
+-- with Type/Model/Status/Location taken from user-managed lookup lists, and
+-- the old standalone "units" table was folded into "locations". That change
+-- needed the old tables dropped:
+--
+--     drop table if exists feedback cascade;
+--     drop table if exists loans cascade;
+--     drop table if exists items cascade;
+--     drop table if exists units cascade;
+--
+-- Those four lines are NOT restored to executable form. They were safe once,
+-- against disposable demo rows, and they are not safe now: this file is meant
+-- to be re-runnable, and re-running a `drop table` destroys real loan history.
+-- A database that still has the old shapes should run them by hand, once,
+-- having looked at what is in them first.
 -- ---------------------------------------------------------------------------
-drop table if exists feedback cascade;
-drop table if exists loans cascade;
-drop table if exists items cascade;
-drop table if exists units cascade;
 
 -- ---------------------------------------------------------------------------
 -- item_types / item_models / item_statuses — the option lists behind the
@@ -292,3 +303,51 @@ create trigger users_set_updated_at
 
 alter table users        enable row level security;
 alter table activity_log enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Sign-in matches on a normalized username — collapsed whitespace, folded
+-- case — so a stray double space still finds the account. Doing it here
+-- rather than in Python means the lookup is one indexed row instead of a
+-- full table read on every attempt, hashes and all.
+--
+-- Must stay in step with _normalize() in backend/app/routers/users.py.
+-- ---------------------------------------------------------------------------
+alter table users add column if not exists username_normalized text;
+
+create or replace function set_username_normalized() returns trigger as $$
+begin
+    new.username_normalized = lower(regexp_replace(trim(new.username), '\s+', ' ', 'g'));
+    return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists users_set_username_normalized on users;
+create trigger users_set_username_normalized
+    before insert or update of username on users
+    for each row execute function set_username_normalized();
+
+-- Backfill rows that predate the column, then make it the uniqueness rule:
+-- "ליאור  ברגמן" and "ליאור ברגמן" must not be two accounts.
+update users
+   set username_normalized = lower(regexp_replace(trim(username), '\s+', ' ', 'g'))
+ where username_normalized is null;
+
+create unique index if not exists users_username_normalized_key
+    on users(username_normalized);
+
+-- ---------------------------------------------------------------------------
+-- login_attempts — the recent sign-in results per username, so a run of
+-- failures can lock the next one out for a while. Rows older than the window
+-- are dead weight; prune them on a schedule if the table grows.
+-- ---------------------------------------------------------------------------
+create table if not exists login_attempts (
+    id         uuid primary key default gen_random_uuid(),
+    username   text        not null,
+    succeeded  boolean     not null,
+    created_at timestamptz not null default now()
+);
+
+create index if not exists login_attempts_lookup_idx
+    on login_attempts(username, created_at desc);
+
+alter table login_attempts enable row level security;

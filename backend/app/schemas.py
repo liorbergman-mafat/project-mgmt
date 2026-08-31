@@ -296,7 +296,14 @@ class UserUpdate(BaseModel):
 
 
 class PasswordChange(BaseModel):
+    """
+    `current_password` is required when changing your own password; an
+    administrator resetting someone else's has nothing to prove and may omit
+    it. See routers/users.py:set_password.
+    """
+
     password: str
+    current_password: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
@@ -315,6 +322,16 @@ class User(BaseModel):
     last_login_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+
+
+class LoginResponse(BaseModel):
+    """
+    What sign-in hands back: the bearer token every later request carries, and
+    the user record the shell is built from.
+    """
+
+    token: str
+    user: User
 
 
 # --------------------------------------------------------------------------

@@ -26,12 +26,19 @@ type Tab = "users" | "activity";
  * under one header: who may sign in, and what everyone has done.
  * ===================================================================== */
 export default function SettingsPage() {
+  const { user } = useShell();
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
   // The tab is the URL, so a settings screen can be linked to and survives a
   // reload — but the two share a header, so they are one component.
   const tab: Tab = pathname.endsWith("/activity") ? "activity" : "users";
+
+  // The API enforces this independently (backend/app/deps.py) — this only
+  // keeps the screen from offering work it will refuse to finish.
+  if (user.role !== "admin") {
+    return <EmptyState message={t.settings.adminOnly} icon={<UsersIcon />} />;
+  }
 
   return (
     <>

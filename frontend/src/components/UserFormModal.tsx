@@ -2,11 +2,15 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
 import { t } from "../i18n";
+import { useShell } from "../shellData";
 import { ErrorBanner, Field, FormActions, InfoNote, Modal } from "./ui";
 import type { User, UserRole } from "../types";
 
 /** Passwords shorter than this are refused by the API too — see routers/users.py. */
-const MIN_PASSWORD = 4;
+// Matches MIN_PASSWORD in backend/app/routers/users.py, which is what
+// actually enforces it — this only keeps the form from submitting a value
+// the API will refuse.
+const MIN_PASSWORD = 12;
 
 /**
  * Add or edit a user.
@@ -151,20 +155,31 @@ export function PasswordFormModal({
   onClose: () => void;
   onSaved: (saved: User) => void;
 }) {
+  const { user: signedIn } = useShell();
+
+  // An administrator resetting someone's password has nothing to prove.
+  // Changing your own means showing you know the current one, so a screen
+  // left unlocked is not an account takeover. The API enforces both.
+  const needsCurrent = signedIn.role !== "admin" && signedIn.id === user.id;
+
+  const [current, setCurrent] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const mismatch = confirm.length > 0 && password !== confirm;
-  const invalid = password.length < MIN_PASSWORD || password !== confirm;
+  const invalid =
+    password.length < MIN_PASSWORD || password !== confirm || (needsCurrent && !current);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      onSaved(await api.users.setPassword(user.id, password));
+      onSaved(
+        await api.users.setPassword(user.id, password, needsCurrent ? current : undefined),
+      );
     } catch (err) {
       setError((err as Error).message);
       setSaving(false);
@@ -175,6 +190,19 @@ export function PasswordFormModal({
     <Modal title={t.users.changePasswordFor(user.username)} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="form-body">
+          {needsCurrent && (
+            <Field label={t.users.currentPassword} required hint={t.users.currentPasswordHint}>
+              <input
+                type="password"
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+                required
+                autoFocus
+                autoComplete="current-password"
+              />
+            </Field>
+          )}
+
           <Field label={t.users.password} required hint={t.users.passwordRule}>
             <input
               type="password"
@@ -182,7 +210,7 @@ export function PasswordFormModal({
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={MIN_PASSWORD}
-              autoFocus
+              autoFocus={!needsCurrent}
               autoComplete="new-password"
             />
           </Field>

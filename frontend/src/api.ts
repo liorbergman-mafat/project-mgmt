@@ -15,17 +15,23 @@ import type {
 } from "./types";
 
 /**
- * Who the API should credit the next change to.
+ * The bearer token from sign-in.
  *
- * The backend has no session of its own (see auth.ts), so the signed-in
- * username rides along on every request and is what the activity log records.
- * Header values have to be latin-1 and every username here is Hebrew, so it
- * goes out percent-encoded and is decoded server-side.
+ * Every request carries it and the API trusts nothing else about who is
+ * calling — not a header, not the shape of the URL. It is also what the
+ * activity log credits an action to, so it cannot be spoofed into naming
+ * somebody else.
  */
-let actor: string | null = null;
+let token: string | null = null;
+let onExpired: (() => void) | null = null;
 
-export function setApiActor(username: string | null): void {
-  actor = username;
+export function setApiToken(next: string | null): void {
+  token = next;
+}
+
+/** Called when the API rejects the token, so the shell can return to /login. */
+export function setApiOnExpired(handler: () => void): void {
+  onExpired = handler;
 }
 
 /**
@@ -34,9 +40,19 @@ export function setApiActor(username: string | null): void {
  */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (actor) headers["X-Actor"] = encodeURIComponent(actor);
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const response = await fetch(`/api${path}`, { ...init, headers });
+
+  // An expired or revoked token is not an error to show on a screen — the
+  // session is simply over, and the shell has to go back to sign-in.
+  //
+  // Sign-in itself is the exception: a 401 there means the pair was wrong,
+  // and the login screen needs to say so rather than "your session ended".
+  if (response.status === 401 && path !== "/auth/login") {
+    onExpired?.();
+    throw new Error("פג תוקף ההתחברות. יש להתחבר מחדש.");
+  }
 
   if (!response.ok) {
     let detail = `שגיאת שרת (${response.status})`;
@@ -142,15 +158,21 @@ export const api = {
   auth: {
     /** Throws with the server's Hebrew message when the pair is refused. */
     login: (username: string, password: string) =>
-      post<User>("/auth/login", { username, password }),
+      post<{ token: string; user: User }>("/auth/login", { username, password }),
   },
   users: {
     list: () => request<User[]>("/users"),
     create: (body: Record<string, unknown>) => post<User>("/users", body),
     update: (id: string, body: Record<string, unknown>) => patch<User>(`/users/${id}`, body),
-    /** Sets the password outright — there is no "current password" step. */
-    setPassword: (id: string, password: string) =>
-      post<User>(`/users/${id}/password`, { password }),
+    /**
+     * An administrator may reset anyone's password. Everyone else may change
+     * only their own, and has to send the current one with it.
+     */
+    setPassword: (id: string, password: string, currentPassword?: string) =>
+      post<User>(`/users/${id}/password`, {
+        password,
+        ...(currentPassword ? { current_password: currentPassword } : {}),
+      }),
     remove: (id: string) => del(`/users/${id}`),
   },
   /** Read-only: entries are written by the API itself, never by a screen. */

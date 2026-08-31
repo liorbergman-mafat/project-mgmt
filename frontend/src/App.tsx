@@ -131,14 +131,16 @@ function Shell({
             </div>
             {/* Settings and sign-out are the two things you do *to* the
                 session rather than inside it, so they share its corner. */}
-            <NavLink
-              to="/settings"
-              className={({ isActive }) => `footer-btn${isActive ? " active" : ""}`}
-              title={t.nav.settings}
-              aria-label={t.nav.settings}
-            >
-              <SettingsIcon />
-            </NavLink>
+            {user.role === "admin" && (
+              <NavLink
+                to="/settings"
+                className={({ isActive }) => `footer-btn${isActive ? " active" : ""}`}
+                title={t.nav.settings}
+                aria-label={t.nav.settings}
+              >
+                <SettingsIcon />
+              </NavLink>
+            )}
             <button
               type="button"
               className="footer-btn"
@@ -170,8 +172,15 @@ function Shell({
               <Route path="/locations" element={<LocationsPage />} />
               <Route path="/locations/:locationId" element={<LocationDetailPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
-              {/* One component behind both tabs — see SettingsPage. */}
-              <Route path="/settings/*" element={<SettingsPage />} />
+              {/* One component behind both tabs — see SettingsPage. Guarded
+                  here as well as inside it, so the address bar behaves the
+                  same as the nav. The API is what actually enforces it. */}
+              <Route
+                path="/settings/*"
+                element={
+                  user.role === "admin" ? <SettingsPage /> : <Navigate to="/projects" replace />
+                }
+              />
               {/* The units routes moved to /locations when it became a screen of its own. */}
               <Route path="/units" element={<Navigate to="/locations" replace />} />
               <Route path="/units/:locationId" element={<Navigate to="/locations" replace />} />

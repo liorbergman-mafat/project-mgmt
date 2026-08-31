@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from urllib.parse import unquote
 from uuid import UUID
 
 from starlette.concurrency import run_in_threadpool
@@ -24,10 +23,16 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from . import tokens
 from .repository import rows, table
 
 # Reads change nothing, so they are not worth a row apiece.
 TRACKED_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
+
+# The exception: pulling the contacts directory is a bulk read of names,
+# phone numbers and personal numbers. It changes nothing, but it is exactly
+# the request worth being able to account for afterwards.
+AUDITED_READS = {"contacts"}
 
 # The URL segment after /api/ → the table it writes to. An endpoint whose
 # segment is not here (health, the log's own read endpoint) is not recorded.
@@ -97,9 +102,6 @@ def _describe(request: Request) -> dict[str, Any] | None:
     Paths look like /api/<entity>[/<id>][/<verb>]; the pieces present decide
     both the action and whether the target is already known by id.
     """
-    if request.method not in TRACKED_METHODS:
-        return None
-
     parts = [part for part in request.url.path.split("/") if part]
     if len(parts) < 2 or parts[0] != "api":
         return None
@@ -112,7 +114,17 @@ def _describe(request: Request) -> dict[str, Any] | None:
     entity_id = next((part for part in tail if _is_uuid(part)), None)
     verb = next((part for part in reversed(tail) if not _is_uuid(part)), None)
 
-    action = ACTION_BY_VERB.get(verb) if verb else ACTION_BY_METHOD.get(request.method)
+    if request.method == "GET":
+        # Only the bulk directory read, not a single record fetched to fill
+        # in a screen — one row at a time is ordinary browsing.
+        if entity not in AUDITED_READS or entity_id:
+            return None
+        action = "read"
+    elif request.method in TRACKED_METHODS:
+        action = ACTION_BY_VERB.get(verb) if verb else ACTION_BY_METHOD.get(request.method)
+    else:
+        return None
+
     if action is None:
         return None
 
@@ -127,13 +139,14 @@ def _describe(request: Request) -> dict[str, Any] | None:
 
 def _actor(request: Request) -> str | None:
     """
-    Who is asking, from the header the frontend sets on every request.
+    Who is asking, from the signed session token.
 
-    Header values have to be latin-1 and every username here is Hebrew, so the
-    frontend percent-encodes it (see api.ts) and it is decoded back here.
+    Never from a header the caller controls: the log's whole value is that an
+    entry can be relied on, and a supplied name can be anything at all — an
+    empty one, or a colleague's.
     """
-    raw = request.headers.get("x-actor")
-    return unquote(raw).strip() or None if raw else None
+    payload = tokens.from_header(request.headers.get("authorization", ""))
+    return payload["username"] if payload else None
 
 
 async def _buffer(response: Response) -> tuple[bytes, Response]:
@@ -161,6 +174,12 @@ def _fill_from_response(entry: dict[str, Any], body: bytes) -> None:
         return
     if not isinstance(data, dict):
         return
+
+    # Signing in answers with {token, user} rather than a bare record, and the
+    # token is not something to go looking through — the user underneath it is
+    # what describes the action.
+    if entry["entity"] == AUTH_ENTITY:
+        data = data.get("user") if isinstance(data.get("user"), dict) else {}
 
     if not entry["entity_id"] and _is_uuid(str(data.get("id", ""))):
         entry["entity_id"] = data["id"]

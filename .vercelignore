@@ -1,5 +1,14 @@
 # Keep the serverless bundle and the build context small. Most of this is
 # already gitignored; listed here so a local `vercel deploy` matches CI.
+#
+# IMPORTANT: .gitignore does NOT apply to Vercel uploads while this file
+# exists — Vercel only falls back to it when .vercelignore is absent. Every
+# secret path has to be repeated here.
+.env
+*.env
+backend/.env
+backend/**/.env
+
 backend/.venv/
 backend/smoke_test.py
 frontend/node_modules/

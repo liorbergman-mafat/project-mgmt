@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
-import type { SessionUser } from "../auth";
+import type { Session } from "../auth";
 import { ParentMark } from "../components/ParentMark";
 import { ErrorBanner } from "../components/ui";
 import { t } from "../i18n";
@@ -10,13 +10,12 @@ import { t } from "../i18n";
  * Sign-in.
  *
  * The pair goes to the API, which checks it against the `users` table —
- * managed from Settings → משתמשים — and answers with the user record the
- * session is built from. The server deliberately gives one message for a
- * wrong username and a wrong password alike; this screen just shows it.
- *
- * It gates the UI, not the data: see the note in auth.ts.
+ * managed from Settings → משתמשים — and answers with a session token and the
+ * user record. The server deliberately gives one message for a wrong username
+ * and a wrong password alike; this screen just shows it. Too many failures in
+ * a row are refused outright for a while, with a message saying so.
  */
-export default function LoginPage({ onSignIn }: { onSignIn: (user: SessionUser) => void }) {
+export default function LoginPage({ onSignIn }: { onSignIn: (session: Session) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
