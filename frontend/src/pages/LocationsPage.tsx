@@ -3,13 +3,13 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useAsync } from "../hooks";
 import { formatRelative, itemLabel, t } from "../i18n";
-import { groupByBrigade, options, sortCategories } from "../locationGrouping";
+import { compareBrigades, groupByBrigade, options, sortCategories } from "../locationGrouping";
 import { affiliation, buildLocationStats, emptyStats } from "../locationStats";
 import type { LocationStats } from "../locationStats";
 import { useShell } from "../shellData";
 import { ContactFormModal } from "../components/ContactFormModal";
 import { LocationFormModal } from "../components/LocationFormModal";
-import { ChevronDown, LocationsIcon } from "../components/icons";
+import { ChevronDown, EditIcon, LocationsIcon, TrashIcon } from "../components/icons";
 import {
   ConfirmModal,
   EmptyState,
@@ -21,8 +21,20 @@ import {
 } from "../components/ui";
 import type { Item, Location, ProjectSummary } from "../types";
 
-/** The chip that turns the category filter off. Not a category name. */
-const ALL = "__all__";
+/** The chip for rows filed under no category at all. Not a category name. */
+const NO_CATEGORY = "__none__";
+
+/**
+ * Which column the table is ordered by. `null` is the resting order: brigade
+ * number ascending (see locationGrouping.compareBrigades), which no header
+ * stands for — clicking a sorted header a third time returns to it.
+ */
+type SortKey = "name" | "battalion" | "category" | "items" | "openLoans";
+type Sort = { key: SortKey; dir: 1 | -1 } | null;
+
+/** Hebrew, but digit-aware, so גדוד 12 sorts before גדוד 890 rather than after. */
+const text = (a: string | null, b: string | null) =>
+  (a ?? "").localeCompare(b ?? "", "he", { numeric: true });
 
 /* ========================================================================
  * The directory: every location grouped by brigade, a drill-down beside it.
@@ -41,32 +53,67 @@ export function LocationsPage() {
 
   const all = data ?? [];
 
-  // One chip row, in the fixed briefing order rather than alphabetical, with
-  // "all" in front — the directory runs to a few hundred rows and category is
-  // the cut that makes it navigable.
-  const [category, setCategory] = useState<string>(ALL);
-  const categories = useMemo(
-    () => [
-      { key: ALL, label: t.feedback.filters.all },
-      ...sortCategories(options(all, (row) => row.category)).map((value) => ({
-        key: value,
-        label: value,
-      })),
-    ],
-    [all],
+  // One chip row, in the fixed briefing order rather than alphabetical. There
+  // is no "all" chip: the directory runs to a few hundred rows across seven
+  // categories, and every one of them at once is the wall of rows the cut
+  // exists to avoid — so it opens on the first category instead, סדיר קחצ״ר.
+  const [category, setCategory] = useState<string | null>(null);
+  const categories = useMemo(() => {
+    const named = sortCategories(options(all, (row) => row.category)).map((value) => ({
+      key: value,
+      label: value,
+    }));
+    // A unit may be saved with no category; it would otherwise be unreachable.
+    return all.some((row) => !row.category)
+      ? [...named, { key: NO_CATEGORY, label: t.locations.noCategory }]
+      : named;
+  }, [all]);
+
+  const activeCategory =
+    (category && categories.some((c) => c.key === category) ? category : categories[0]?.key) ?? "";
+  const visible = useMemo(
+    () =>
+      all.filter((row) =>
+        activeCategory === NO_CATEGORY ? !row.category : row.category === activeCategory,
+      ),
+    [all, activeCategory],
   );
 
-  const activeCategory = categories.some((c) => c.key === category) ? category : ALL;
-  const visible =
-    activeCategory === ALL ? all : all.filter((row) => row.category === activeCategory);
+  const [sort, setSort] = useState<Sort>(null);
+
+  function toggleSort(key: SortKey) {
+    // asc → desc → back to the brigade order the table rests in.
+    setSort((prev) => {
+      if (prev?.key !== key) return { key, dir: 1 };
+      return prev.dir === 1 ? { key, dir: -1 } : null;
+    });
+  }
 
   // A category can span hundreds of units, so they sit in collapsible buckets
   // keyed by (category, brigade) — see groupByBrigade.
   //
   // They open *shut*: this directory is 243 units across 71 brigades, and
   // expanding all of them at once is the wall of rows the grouping exists to
-  // avoid. Collapsed, each brigade is one row that still carries its totals.
-  const groups = useMemo(() => groupByBrigade(visible), [visible]);
+  // avoid. Collapsed, each brigade is one row that still carries its totals —
+  // which is also what the numeric columns sort the brigades themselves by.
+  const groups = useMemo(() => {
+    const statOf = (row: Location) => stats.get(row.id) ?? emptyStats();
+    const built = groupByBrigade(visible).map((group) => ({
+      ...group,
+      rows: sort
+        ? [...group.rows].sort((a, b) => compareRows(sort, a, b, statOf))
+        : group.rows,
+      totals: group.rows.reduce(
+        (acc, row) => ({
+          items: acc.items + statOf(row).itemCount,
+          open: acc.open + statOf(row).openLoans,
+        }),
+        { items: 0, open: 0 },
+      ),
+    }));
+    return sort ? built.sort((a, b) => compareGroups(sort, a, b)) : built;
+  }, [visible, sort, stats]);
+
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   function toggleGroup(key: string) {
@@ -91,8 +138,10 @@ export function LocationsPage() {
   function afterSaved(saved: Location) {
     setCreating(false);
     setEditing(null);
-    // Open the saved row's group, so it is visible right away.
+    // Show the saved row's group, so it is visible right away — its category
+    // is not necessarily the one the chips are on.
     const key = `${saved.category ?? ""} ${saved.brigade ?? ""}`;
+    setCategory(saved.category ?? NO_CATEGORY);
     setOpen((prev) => ({ ...prev, [key]: true }));
     setSelectedId(saved.id);
     reload();
@@ -143,7 +192,7 @@ export function LocationsPage() {
         />
       )}
 
-      {all.length > 0 && categories.length > 2 && (
+      {all.length > 0 && categories.length > 1 && (
         <FilterChips values={categories} selected={activeCategory} onSelect={setCategory} />
       )}
 
@@ -165,11 +214,31 @@ export function LocationsPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>{t.locations.name}</th>
-                    <th>{t.locations.battalion}</th>
-                    <th>{t.locations.category}</th>
-                    <th>{t.locations.itemsHere}</th>
-                    <th>{t.locations.openLoans}</th>
+                    <SortHeader label={t.locations.name} column="name" sort={sort} onSort={toggleSort} />
+                    <SortHeader
+                      label={t.locations.battalion}
+                      column="battalion"
+                      sort={sort}
+                      onSort={toggleSort}
+                    />
+                    <SortHeader
+                      label={t.locations.category}
+                      column="category"
+                      sort={sort}
+                      onSort={toggleSort}
+                    />
+                    <SortHeader
+                      label={t.locations.itemsHere}
+                      column="items"
+                      sort={sort}
+                      onSort={toggleSort}
+                    />
+                    <SortHeader
+                      label={t.locations.openLoans}
+                      column="openLoans"
+                      sort={sort}
+                      onSort={toggleSort}
+                    />
                   </tr>
                 </thead>
 
@@ -178,16 +247,7 @@ export function LocationsPage() {
                   // The two right-hand columns keep counting while the group
                   // is shut, so a collapsed brigade still says how much sits
                   // under it.
-                  const totals = group.rows.reduce(
-                    (acc, row) => {
-                      const stat = stats.get(row.id) ?? emptyStats();
-                      return {
-                        items: acc.items + stat.itemCount,
-                        open: acc.open + stat.openLoans,
-                      };
-                    },
-                    { items: 0, open: 0 },
-                  );
+                  const totals = group.totals;
 
                   return (
                     <tbody key={group.key}>
@@ -285,6 +345,79 @@ export function LocationsPage() {
   );
 }
 
+/* ------------------------------------------------------------------------
+ * Sorting.
+ *
+ * The table has two levels, and a column orders both: the units inside each
+ * brigade, and — where the collapsed brigade row shows a value of its own —
+ * the brigades themselves. The two text columns have no brigade-level value
+ * (a brigade is one category, and its units' names are its own), so those
+ * leave the brigades in their resting order and sort only within them.
+ * --------------------------------------------------------------------- */
+
+function compareRows(
+  sort: NonNullable<Sort>,
+  a: Location,
+  b: Location,
+  statOf: (row: Location) => LocationStats,
+): number {
+  const by = () => {
+    switch (sort.key) {
+      case "name":
+        return text(a.name, b.name);
+      case "battalion":
+        return text(a.battalion, b.battalion);
+      case "category":
+        return text(a.category, b.category);
+      case "items":
+        return statOf(a).itemCount - statOf(b).itemCount;
+      case "openLoans":
+        return statOf(a).openLoans - statOf(b).openLoans;
+    }
+  };
+  return by() * sort.dir;
+}
+
+type SortedGroup = { label: string; brigade: string | null; totals: { items: number; open: number } };
+
+function compareGroups(sort: NonNullable<Sort>, a: SortedGroup, b: SortedGroup): number {
+  switch (sort.key) {
+    case "name":
+      return text(a.label, b.label) * sort.dir;
+    case "items":
+      return (a.totals.items - b.totals.items) * sort.dir;
+    case "openLoans":
+      return (a.totals.open - b.totals.open) * sort.dir;
+    default:
+      return compareBrigades(a.brigade, b.brigade);
+  }
+}
+
+/** A column header that sorts the table. Its caret shows on hover, too. */
+function SortHeader({
+  label,
+  column,
+  sort,
+  onSort,
+}: {
+  label: string;
+  column: SortKey;
+  sort: Sort;
+  onSort: (key: SortKey) => void;
+}) {
+  const active = sort?.key === column ? sort : null;
+  return (
+    <th aria-sort={active ? (active.dir === 1 ? "ascending" : "descending") : "none"}>
+      <button type="button" className={`th-sort${active ? " on" : ""}`} onClick={() => onSort(column)}>
+        {label}
+        <span className={`sort-caret${active?.dir === 1 ? " asc" : ""}`} aria-hidden="true">
+          <ChevronDown size={11} />
+        </span>
+      </button>
+    </th>
+  );
+}
+
 /**
  * The drill-down beside the table. Stays mounted with nothing selected so the
  * row doesn't reflow when a selection comes and goes.
@@ -319,12 +452,26 @@ function LocationPanel({
       <div className="panel-head">
         <div className="panel-title-row">
           <div className="panel-title">{location.name}</div>
+          {/* Icons, not words — the label survives as the tooltip and the
+              accessible name, as in the projects table. */}
           <div className="row-actions">
-            <button type="button" className="link-btn" onClick={onEdit}>
-              {t.common.edit}
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onEdit}
+              title={t.common.edit}
+              aria-label={`${t.common.edit} ${location.name}`}
+            >
+              <EditIcon />
             </button>
-            <button type="button" className="link-btn danger" onClick={onDelete}>
-              {t.common.delete}
+            <button
+              type="button"
+              className="icon-btn danger"
+              onClick={onDelete}
+              title={t.common.delete}
+              aria-label={`${t.common.delete} ${location.name}`}
+            >
+              <TrashIcon />
             </button>
           </div>
         </div>

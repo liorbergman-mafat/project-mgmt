@@ -827,6 +827,46 @@ thead th {
   background: var(--panel);
 }
 
+/* A header that sorts the table. It is a button, but reads as the header it
+   replaced — the caret is what says the column is live. */
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.th-sort:hover,
+.th-sort.on {
+  color: var(--ink);
+}
+
+.sort-caret {
+  display: flex;
+  color: var(--brand-700);
+  /* Hidden rather than absent, so activating a column shifts nothing. */
+  visibility: hidden;
+}
+
+.th-sort:hover .sort-caret {
+  visibility: visible;
+  color: var(--dim);
+}
+
+.th-sort.on .sort-caret {
+  visibility: visible;
+  color: var(--brand-700);
+}
+
+.sort-caret.asc {
+  transform: rotate(180deg);
+}
+
 thead th.shrink {
   width: 1%;
 }
@@ -1912,6 +1952,33 @@ tr.group-row td {
   font-size: var(--fs-th);
   color: var(--dim);
   line-height: 1.5;
+}
+
+/* A dropdown with a "+" beside it, for a value the list doesn't hold yet.
+   The button keeps its own width so the select still shrinks with the column. */
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.picker > select {
+  flex: 1;
+  min-width: 0;
+}
+
+.picker-add {
+  flex: none;
+  width: 30px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+}
+
+.picker-add:hover {
+  border-color: var(--brand-700);
+  color: var(--brand-700);
+  background: var(--panel);
 }
 
 /* A label above a group of fields, e.g. the loan form's signer block. */

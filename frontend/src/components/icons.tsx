@@ -125,6 +125,15 @@ export function OpenIcon({ size = 15 }: { size?: number }) {
   );
 }
 
+/** Add a value to the list beside it — the "+" next to a dropdown. */
+export function PlusIcon({ size = 14 }: { size?: number }) {
+  return (
+    <Glyph size={size} width={2.2}>
+      <path d="M12 5v14M5 12h14" />
+    </Glyph>
+  );
+}
+
 /** Delete a row. */
 export function TrashIcon({ size = 15 }: { size?: number }) {
   return (

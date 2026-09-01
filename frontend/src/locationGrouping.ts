@@ -30,7 +30,13 @@ export function sortCategories(values: string[]): string[] {
   });
 }
 
-export type BrigadeGroup = { key: string; label: string; rows: Location[] };
+export type BrigadeGroup = {
+  key: string;
+  label: string;
+  /** The raw value, for sorting — `label` may carry a disambiguating category. */
+  brigade: string | null;
+  rows: Location[];
+};
 
 /**
  * Bucket the (already-filtered) rows by brigade, for a collapsible list —
@@ -64,7 +70,56 @@ export function groupByBrigade(rows: Location[]): BrigadeGroup[] {
     .map(([key, { category, brigade, rows }]) => {
       const name = brigade || t.common.none;
       const ambiguous = (nameOccurrences.get(brigade ?? "") ?? 0) > 1;
-      return { key, label: ambiguous && category ? `${name} (${category})` : name, rows };
+      return {
+        key,
+        label: ambiguous && category ? `${name} (${category})` : name,
+        brigade,
+        rows,
+      };
     })
-    .sort((a, b) => a.label.localeCompare(b.label, "he"));
+    .sort((a, b) => compareBrigades(a.brigade, b.brigade));
+}
+
+/**
+ * The directory's resting order: by brigade number, ascending — so 1- גולני,
+ * 2- כרמלי, 10- הראל, not the 1/10/2 a plain string sort gives. A brigade
+ * written without a number ("אפרים", "מרום") has nothing to place it in that
+ * run, so those follow the numbered ones, in Hebrew order.
+ */
+export function compareBrigades(a: string | null, b: string | null): number {
+  const left = splitUnitName(a);
+  const right = splitUnitName(b);
+  if (left.number && right.number) {
+    const byNumber = Number(left.number) - Number(right.number);
+    if (byNumber) return byNumber;
+  } else if (left.number !== right.number) {
+    return left.number ? -1 : 1;
+  }
+  return (a ?? "").localeCompare(b ?? "", "he");
+}
+
+/* ------------------------------------------------------------------------
+ * Brigade / battalion names.
+ *
+ * The directory writes both as one string, in the shape the seed data uses:
+ * number, a dash, then the name — "1- גולני", "261- בה"ד 1". Plenty of rows
+ * carry only one half (the brigade "אפרים", the battalion "890"), so the
+ * form asks for the two parts separately and joins them here, keeping every
+ * value ever added in the same shape as the ones already in the table.
+ * --------------------------------------------------------------------- */
+
+/** Join the two halves the form asks for. Either may be blank, but not both. */
+export function formatUnitName(number: string, name: string): string {
+  const num = number.trim();
+  const label = name.trim();
+  if (num && label) return `${num}- ${label}`;
+  return num || label;
+}
+
+/** The inverse, so editing an existing row shows the parts in their own fields. */
+export function splitUnitName(value: string | null): { number: string; name: string } {
+  const raw = (value ?? "").trim();
+  const match = /^(\d+)\s*-\s*(.+)$/.exec(raw);
+  if (match) return { number: match[1], name: match[2] };
+  return /^\d+$/.test(raw) ? { number: raw, name: "" } : { number: "", name: raw };
 }

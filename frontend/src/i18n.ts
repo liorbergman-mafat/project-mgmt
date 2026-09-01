@@ -239,8 +239,25 @@ export const t = {
     name: "שם",
     kind: "סוג יחידה",
     category: "קטגוריה",
+    /** The chip for units saved without one — the filter has no "all". */
+    noCategory: "ללא קטגוריה",
     brigade: "חטיבה",
     battalion: "גדוד",
+    /* The category and brigade pickers list what the directory already uses;
+       the "+" beside each one names a value that isn't in the list yet. */
+    selectCategory: "בחר קטגוריה",
+    selectBrigade: "בחר חטיבה",
+    addCategory: "הוספת קטגוריה",
+    addBrigade: "הוספת חטיבה",
+    newCategory: "קטגוריה חדשה",
+    newBrigade: "חטיבה חדשה",
+    categoryName: "שם הקטגוריה",
+    brigadeNumber: "מספר חטיבה",
+    brigadeName: "שם חטיבה",
+    battalionNumber: "מספר גדוד",
+    battalionName: "שם גדוד",
+    /** A brigade or battalion needs a number or a name — either one will do. */
+    numberOrName: "יש להזין מספר, שם, או שניהם.",
     contactName: "איש קשר",
     contactPhone: "טלפון",
     notes: "הערות",

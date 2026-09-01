@@ -1,12 +1,19 @@
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t } from "../i18n";
 import { AlertIcon, InfoIcon, WarningIcon } from "./icons";
 
 /* -------------------------------------------------------------------------
  * Modal — used by every "new X" form. Closes on backdrop click and Escape;
  * a click inside the dialog must not bubble out to the backdrop.
+ *
+ * Modals nest — the location form opens "new brigade" and the contact form
+ * on top of itself — so the open ones are tracked in order and only the
+ * innermost answers Escape. Otherwise one keypress closes the little form
+ * *and* the half-filled one it was opened from.
  * ---------------------------------------------------------------------- */
+const openModals: object[] = [];
+
 export function Modal({
   title,
   onClose,
@@ -18,11 +25,24 @@ export function Modal({
   wide?: boolean;
   children: ReactNode;
 }) {
+  // Read through a ref, so a new onClose on re-render never re-registers this
+  // modal and moves it to the top of the stack ahead of its own children.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const token = {};
+    openModals.push(token);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && openModals[openModals.length - 1] === token) closeRef.current();
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      const index = openModals.indexOf(token);
+      if (index !== -1) openModals.splice(index, 1);
+    };
+  }, []);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
