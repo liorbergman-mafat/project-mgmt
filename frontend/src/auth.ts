@@ -51,11 +51,18 @@ export function useSession() {
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return;
+        setSession(data.session);
+      })
+      .catch(() => {})
+      // Whatever happened, stop blocking the first render — a stuck `loading`
+      // is a blank page.
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       if (!active) return;

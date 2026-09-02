@@ -4,6 +4,7 @@ import { NavLink, Navigate, Route, Routes, useLocation, useMatch } from "react-r
 import { api } from "./api";
 import { initials, useSession } from "./auth";
 import type { SessionUser } from "./auth";
+import { supabaseConfigured } from "./supabase";
 import { ParentMark } from "./components/ParentMark";
 import {
   ActivityIcon,
@@ -27,6 +28,10 @@ import type { ProjectSummary } from "./types";
 
 export default function App() {
   const { user, loading, authorized, signInWithGoogle, signOut } = useSession();
+
+  // No Supabase env in this build — sign-in cannot work. Say so instead of
+  // rendering a login screen whose button does nothing.
+  if (!supabaseConfigured) return <ConfigError />;
 
   // Reading the stored session is near-instant; this just avoids a flash of the
   // login screen before it resolves.
@@ -222,6 +227,20 @@ function Breadcrumb({ projects }: { projects: ProjectSummary[] | null }) {
           <span className="crumb-leaf">{leaf}</span>
         </>
       )}
+    </div>
+  );
+}
+
+/** Shown when the build has no Supabase env — a dead end, but a legible one. */
+function ConfigError() {
+  return (
+    <div style={{ maxWidth: 640, margin: "15vh auto", padding: "0 24px", direction: "rtl" }}>
+      <h1 style={{ fontSize: 20 }}>המערכת אינה מוגדרת</h1>
+      <p style={{ color: "#555", lineHeight: 1.7 }}>
+        משתני הסביבה <code>VITE_SUPABASE_URL</code> ו־<code>VITE_SUPABASE_ANON_KEY</code> חסרים
+        בבנייה הזו, ולכן ההתחברות אינה אפשרית. יש להגדיר אותם ב־<code>frontend/.env</code>{" "}
+        (הרצה מקומית) או במשתני הסביבה של פרויקט ה־Vercel, ואז לבנות מחדש.
+      </p>
     </div>
   );
 }

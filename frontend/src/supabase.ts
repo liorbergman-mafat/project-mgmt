@@ -11,19 +11,28 @@ import { createClient } from "@supabase/supabase-js";
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!url || !anonKey) {
-  // Missing here means nobody can ever sign in — make that loud in the console
-  // rather than letting it surface as a vague failure at click time.
+/** False when the build had no Supabase env — App renders a setup message. */
+export const supabaseConfigured = Boolean(url && anonKey);
+
+if (!supabaseConfigured) {
   console.error(
-    "VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are not set — sign-in will not work.",
+    "VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are not set — sign-in will not work. " +
+      "Set them in frontend/.env (local) or the Vercel project's environment variables, then rebuild.",
   );
 }
 
-export const supabase = createClient(url ?? "", anonKey ?? "", {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    // Parse the "#access_token=..." fragment Google redirects back with.
-    detectSessionInUrl: true,
+// `createClient` throws on an empty URL, which would blank the whole page before
+// React mounts. Fall back to a syntactically valid placeholder so the app can
+// load far enough to show the setup message above.
+export const supabase = createClient(
+  url || "http://localhost:54321",
+  anonKey || "missing-anon-key",
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      // Parse the "#access_token=..." fragment Google redirects back with.
+      detectSessionInUrl: true,
+    },
   },
-});
+);
