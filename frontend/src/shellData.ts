@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
+import type { SessionUser } from "./auth";
 import type { AsyncState } from "./hooks";
-import type { Feedback, Item, Location, ProjectSummary, User } from "./types";
+import type { Feedback, Item, Location, ProjectSummary } from "./types";
 
 /**
  * The lists the nav bar counts are built from.
@@ -12,19 +13,14 @@ import type { Feedback, Item, Location, ProjectSummary, User } from "./types";
  * follows along.
  */
 export interface ShellData {
-  /** The signed-in user, as the API returned them at sign-in. */
-  user: User;
+  /** The signed-in user, from the Google session. */
+  user: SessionUser;
   projects: AsyncState<ProjectSummary[]>;
   items: AsyncState<Item[]>;
   locations: AsyncState<Location[]>;
   feedback: AsyncState<Feedback[]>;
   /** After a change that can touch more than one of the above (e.g. a loan). */
   reloadAll: () => void;
-  /**
-   * Update the session from a freshly saved user record. The settings screen
-   * can edit the signed-in user, and the nav bar has to follow along.
-   */
-  refresh: (user: User) => void;
 }
 
 const ShellContext = createContext<ShellData | null>(null);

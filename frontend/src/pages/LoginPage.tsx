@@ -1,47 +1,29 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
-import { api } from "../api";
-import type { Session } from "../auth";
 import { ParentMark } from "../components/ParentMark";
 import { ErrorBanner } from "../components/ui";
 import { t } from "../i18n";
 
 /**
- * Sign-in.
+ * Sign-in screen. One way in: Google, via Supabase Auth.
  *
- * The pair goes to the API, which checks it against the `users` table —
- * managed from Settings → משתמשים — and answers with a session token and the
- * user record. The server deliberately gives one message for a wrong username
- * and a wrong password alike; this screen just shows it. Too many failures in
- * a row are refused outright for a while, with a message saying so.
+ *  - signed out        → the Google button
+ *  - checking          → session in hand, waiting on the allowlist check
+ *  - blocked           → signed in with an account that isn't authorized
  */
-export default function LoginPage({ onSignIn }: { onSignIn: (session: Session) => void }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!username.trim() || !password) {
-      setError(t.auth.missing);
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      onSignIn(await api.auth.login(username.trim(), password));
-    } catch (err) {
-      setError((err as Error).message);
-      setPassword("");
-      setBusy(false);
-    }
-  }
-
+export default function LoginPage({
+  onGoogle,
+  onSignOut,
+  checking,
+  blocked,
+}: {
+  onGoogle: () => void;
+  onSignOut: () => void;
+  checking: boolean;
+  blocked: boolean;
+}) {
   return (
     <div className="login">
       <div className="login-form-pane">
-        <form className="login-box" onSubmit={submit}>
+        <div className="login-box">
           <div className="login-brand">
             {/* Mark and unit name are one lockup — they always move together. */}
             <div className="login-lockup">
@@ -54,38 +36,27 @@ export default function LoginPage({ onSignIn }: { onSignIn: (session: Session) =
 
           <p className="login-sub">{t.auth.subtitle}</p>
 
-          {error && <ErrorBanner error={error} />}
+          {blocked && <ErrorBanner error={t.auth.notAuthorized} />}
 
           <div className="login-fields">
-            <label className="field">
-              <span className="field-label">{t.auth.username}</span>
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                disabled={busy}
-                autoFocus
-              />
-            </label>
-
-            <label className="field">
-              <span className="field-label">{t.auth.password}</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                disabled={busy}
-              />
-            </label>
-
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? t.common.loading : t.auth.submit}
-            </button>
+            {blocked ? (
+              <button type="button" className="btn btn-primary" onClick={onSignOut}>
+                {t.shell.signOut}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onGoogle}
+                disabled={checking}
+              >
+                {checking ? t.auth.checking : t.auth.googleSignIn}
+              </button>
+            )}
           </div>
 
           <p className="login-note">{t.auth.note}</p>
-        </form>
+        </div>
       </div>
     </div>
   );

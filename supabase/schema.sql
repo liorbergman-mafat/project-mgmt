@@ -250,28 +250,29 @@ alter table loans         enable row level security;
 alter table feedback      enable row level security;
 
 -- ---------------------------------------------------------------------------
--- users — who may sign in, managed from the Settings → משתמשים screen.
+-- allowed_users — the authorization allowlist.
 --
--- Replaces the two credential pairs that used to be hardcoded in the frontend
--- bundle. Only the hash is stored (see backend/app/security.py); the plaintext
--- password never reaches the database, and the API never returns the hash.
+-- Supabase Auth (Google) decides who can *sign in*; this table decides who may
+-- *use the app*. The FastAPI backend checks every request's token email against
+-- this table (see backend/app/auth.py) and returns 403 if it is absent.
 --
--- `role` is a label the UI shows, not an enforced permission: the API has no
--- session of its own yet, so it cannot tell an admin's request from anyone
--- else's. `is_active` *is* enforced — a disabled user is refused at sign-in.
+-- Manage it straight from the Supabase dashboard (Table editor -> allowed_users)
+-- or with SQL:
+--     insert into allowed_users (email) values ('someone@gmail.com');
+--     delete from allowed_users where email = 'someone@gmail.com';
+-- Emails are stored lower-case; the backend lower-cases before comparing.
 -- ---------------------------------------------------------------------------
-create table if not exists users (
-    id            uuid primary key default gen_random_uuid(),
-    username      text        not null unique,
-    full_name     text,
-    role          text        not null default 'user'
-                              check (role in ('admin', 'user')),
-    is_active     boolean     not null default true,
-    password_hash text        not null,
-    last_login_at timestamptz,
-    created_at    timestamptz not null default now(),
-    updated_at    timestamptz not null default now()
+create table if not exists allowed_users (
+    email      text primary key check (email = lower(email)),
+    note       text,
+    created_at timestamptz not null default now()
 );
+
+-- Bootstrap: without at least one row here, nobody can get past the login
+-- screen. Replace / add rows for the real users. Safe to re-run.
+insert into allowed_users (email, note)
+values ('liorbrgmn@gmail.com', 'initial admin')
+on conflict (email) do nothing;
 
 -- ---------------------------------------------------------------------------
 -- activity_log — one row per change made through the API, written by the
@@ -279,9 +280,9 @@ create table if not exists users (
 --
 -- `action` and `entity` are stable keys ("create", "locations", …) that the
 -- frontend renders as Hebrew; `actor` and `label` are *snapshots* of the
--- username and of the record's name at the time, deliberately not foreign
--- keys — the log must still read correctly after the row it describes is
--- deleted or the user who did it is renamed.
+-- acting user's email and of the record's name at the time, deliberately not
+-- foreign keys — the log must still read correctly after the row it describes
+-- is deleted.
 -- ---------------------------------------------------------------------------
 create table if not exists activity_log (
     id         uuid primary key default gen_random_uuid(),
@@ -296,58 +297,14 @@ create table if not exists activity_log (
 create index if not exists activity_log_created_at_idx on activity_log(created_at desc);
 create index if not exists activity_log_actor_idx      on activity_log(actor);
 
-drop trigger if exists users_set_updated_at on users;
-create trigger users_set_updated_at
-    before update on users
-    for each row execute function set_updated_at();
-
-alter table users        enable row level security;
-alter table activity_log enable row level security;
+alter table allowed_users enable row level security;
+alter table activity_log  enable row level security;
 
 -- ---------------------------------------------------------------------------
--- Sign-in matches on a normalized username — collapsed whitespace, folded
--- case — so a stray double space still finds the account. Doing it here
--- rather than in Python means the lookup is one indexed row instead of a
--- full table read on every attempt, hashes and all.
---
--- Must stay in step with _normalize() in backend/app/routers/users.py.
+-- Migration: sign-in moved from username/password to Google + this allowlist.
+-- Drop the old credential tables and their helpers — `create ... if not exists`
+-- above will not remove them on an already-deployed database.
 -- ---------------------------------------------------------------------------
-alter table users add column if not exists username_normalized text;
-
-create or replace function set_username_normalized() returns trigger as $$
-begin
-    new.username_normalized = lower(regexp_replace(trim(new.username), '\s+', ' ', 'g'));
-    return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists users_set_username_normalized on users;
-create trigger users_set_username_normalized
-    before insert or update of username on users
-    for each row execute function set_username_normalized();
-
--- Backfill rows that predate the column, then make it the uniqueness rule:
--- "ליאור  ברגמן" and "ליאור ברגמן" must not be two accounts.
-update users
-   set username_normalized = lower(regexp_replace(trim(username), '\s+', ' ', 'g'))
- where username_normalized is null;
-
-create unique index if not exists users_username_normalized_key
-    on users(username_normalized);
-
--- ---------------------------------------------------------------------------
--- login_attempts — the recent sign-in results per username, so a run of
--- failures can lock the next one out for a while. Rows older than the window
--- are dead weight; prune them on a schedule if the table grows.
--- ---------------------------------------------------------------------------
-create table if not exists login_attempts (
-    id         uuid primary key default gen_random_uuid(),
-    username   text        not null,
-    succeeded  boolean     not null,
-    created_at timestamptz not null default now()
-);
-
-create index if not exists login_attempts_lookup_idx
-    on login_attempts(username, created_at desc);
-
-alter table login_attempts enable row level security;
+drop table if exists login_attempts;
+drop table if exists users cascade;
+drop function if exists set_username_normalized() cascade;

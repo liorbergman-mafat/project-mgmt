@@ -15,24 +15,22 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str
 
-    # HMAC key for session tokens (see tokens.py). Generate with
-    # `openssl rand -hex 32`. Rotating it invalidates every open session at
-    # once, which is exactly what you want after a suspected leak.
-    session_secret: str
+    # The `anon` (public) key. Used only to ask Supabase Auth to validate a
+    # user's access token — it grants no data access on its own (RLS denies it).
+    supabase_anon_key: str
 
-    # Where the Vite dev server runs, for CORS.
+    # Allowed CORS origins. Defaults to the Vite dev server; in production set
+    # FRONTEND_ORIGIN to the deployed site, e.g. https://loan-manager.vercel.app
+    # (comma-separated to allow more than one).
     frontend_origin: str = "http://localhost:5173"
-
-    # First-run seed only. Set both, sign in, change the password from the
-    # users screen, then unset them. With either one absent no account is
-    # ever created automatically — a password living in the repository is a
-    # password known to everyone who can read it.
-    bootstrap_username: str = ""
-    bootstrap_password: str = ""
 
     # Serves the interactive API docs at /docs. Off in production: the schema
     # is a complete map of the API and /docs is a working client for it.
     debug: bool = False
+
+    @property
+    def frontend_origins(self) -> list[str]:
+        return [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
 
 
 @lru_cache

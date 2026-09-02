@@ -1,104 +1,107 @@
 import { useCallback, useEffect, useState } from "react";
-import { setApiOnExpired, setApiToken } from "./api";
-import type { User } from "./types";
+import type { Session } from "@supabase/supabase-js";
+import { api } from "./api";
+import { supabase } from "./supabase";
 
 /**
- * The signed-in session.
+ * Sign-in is Google, through Supabase Auth, and nothing else.
  *
- * Sign-in checks the username/password pair against the `users` table, which
- * stores only a hash (see backend/app/security.py), and answers with a signed
- * bearer token plus the user record. The token is what makes this a real
- * session: the API refuses every request that does not carry a valid one, so
- * this module gates the data and not merely the screens.
+ * Two gates, in order:
+ *  1. Supabase authenticates the Google account and issues a session.
+ *  2. The backend checks that account's email against the `allowed_users`
+ *     table on the first call to `/api/me` and on every call after. An account
+ *     that signs in but isn't on the list gets `authorized === false` here and
+ *     the "not authorized" screen — it never reaches the app.
  *
- * `role` is enforced server-side too — managing accounts and reading the
- * activity log require an administrator — and `is_active` is re-checked on
- * every request, so disabling an account ends its open session at once.
+ * This module only reads the session and runs check 2; the components above it
+ * decide what to render.
  */
-export type SessionUser = User;
-
-export interface Session {
-  token: string;
-  user: SessionUser;
+export interface SessionUser {
+  id: string;
+  email: string;
+  /** Google display name, falling back to the email if it isn't present. */
+  name: string;
+  avatarUrl: string | null;
 }
 
-const SESSION_KEY = "loan-manager.session";
-
-/** sessionStorage throws in some privacy modes, so every access is guarded. */
-function read(): Session | null {
-  try {
-    const stored = sessionStorage.getItem(SESSION_KEY);
-    if (!stored) return null;
-    const parsed = JSON.parse(stored) as Session;
-    // A hand-edited value should not put a half-built session into the shell.
-    // It buys nothing against the API — the token is signed — but it keeps the
-    // components above from rendering against a malformed user.
-    return parsed &&
-      typeof parsed.token === "string" &&
-      parsed.user &&
-      typeof parsed.user.id === "string" &&
-      typeof parsed.user.username === "string"
-      ? parsed
-      : null;
-  } catch {
-    return null;
-  }
+/** A non-empty string, or null — for picking through Google's metadata bag. */
+function str(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function write(session: Session | null): void {
-  try {
-    if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    else sessionStorage.removeItem(SESSION_KEY);
-  } catch {
-    // Not being able to persist it only costs the user a re-login on reload.
-  }
+function toUser(session: Session | null): SessionUser | null {
+  const user = session?.user;
+  if (!user) return null;
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const email = user.email ?? "";
+  return {
+    id: user.id,
+    email,
+    name: str(meta.full_name) ?? str(meta.name) ?? email,
+    avatarUrl: str(meta.avatar_url) ?? str(meta.picture),
+  };
 }
-
-// Set once at import, before anything renders: a reload restores the session
-// from storage, and the very first request out has to already carry the token.
-setApiToken(read()?.token ?? null);
 
 export function useSession() {
-  const [session, setSession] = useState<Session | null>(read);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  // null = not checked yet, true/false = the backend's answer.
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
 
-  const signIn = useCallback((next: Session) => {
-    write(next);
-    setApiToken(next.token);
-    setSession(next);
-  }, []);
-
-  const signOut = useCallback(() => {
-    write(null);
-    setApiToken(null);
-    setSession(null);
-  }, []);
-
-  // The API rejecting the token has to end the session here too, or the shell
-  // keeps rendering screens whose every request will fail.
   useEffect(() => {
-    setApiOnExpired(signOut);
-  }, [signOut]);
+    let active = true;
 
-  /**
-   * Refresh the session from a freshly saved user record — so renaming
-   * yourself, or changing your own role, shows up in the nav bar at once
-   * instead of after the next sign-in. The token is unaffected.
-   */
-  const refresh = useCallback((next: SessionUser) => {
-    setSession((current) => {
-      if (!current || current.user.id !== next.id) return current;
-      const updated = { token: current.token, user: next };
-      write(updated);
-      return updated;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      setSession(data.session);
+      setLoading(false);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+      if (!active) return;
+      setSession(next);
+      setAuthorized(null); // re-check against the allowlist on any change
+    });
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setAuthorized(null);
+      return;
+    }
+    let active = true;
+    api.auth
+      .me()
+      .then(() => active && setAuthorized(true))
+      .catch(() => active && setAuthorized(false));
+    return () => {
+      active = false;
+    };
+  }, [session]);
+
+  const signInWithGoogle = useCallback(async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
     });
   }, []);
 
-  return { user: session?.user ?? null, signIn, signOut, refresh };
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
+  return { user: toUser(session), loading, authorized, signInWithGoogle, signOut };
 }
 
 /** "ליאור ברגמן" → "ל.ב" — the two-letter monogram in the nav bar avatar. */
-export function initials(username: string): string {
-  const parts = username.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+export function initials(name: string): string {
+  const parts = name.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (parts.length === 0) return "?";
   return parts
     .slice(0, 2)
     .map((part) => part[0].toUpperCase())

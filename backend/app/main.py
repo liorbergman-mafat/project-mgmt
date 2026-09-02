@@ -6,8 +6,8 @@ from fastapi.responses import JSONResponse
 from postgrest.exceptions import APIError
 
 from .activity import ActivityMiddleware
+from .auth import AuthUser, require_user
 from .config import get_settings
-from .deps import current_user, require_admin
 from .routers import (
     activity,
     contacts,
@@ -19,7 +19,6 @@ from .routers import (
     loans,
     locations,
     projects,
-    users,
 )
 
 settings = get_settings()
@@ -42,7 +41,6 @@ FK_VIOLATION_MESSAGES: dict[str, str] = {
 # The same idea for unique constraints ("<table>_<column>_key"), which surface
 # when a name that has to be one of a kind is used twice.
 UNIQUE_VIOLATION_MESSAGES: dict[str, str] = {
-    "users_username_key": "שם המשתמש כבר תפוס.",
     "item_types_name_key": "קיימת כבר קטגוריה בשם זה.",
     "item_models_type_id_name_key": "קיים כבר דגם בשם זה תחת הקטגוריה הזו.",
 }
@@ -70,7 +68,7 @@ app.add_middleware(ActivityMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
+    allow_origins=settings.frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -103,22 +101,30 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# Nothing here is public. `signed_in` is the floor; the user routes carry
-# their own per-endpoint admin checks (the password route has a self-or-admin
-# rule, so it cannot simply be admin-only at the mount).
-signed_in = [Depends(current_user)]
-admin_only = [Depends(require_admin)]
+@app.get("/api/me", tags=["meta"])
+def me(user: AuthUser = Depends(require_user)) -> dict[str, str]:
+    """
+    Who the caller is, if their token is valid and their account is authorized.
+    The frontend calls this once after sign-in to decide between the app and
+    the "not authorized" screen.
+    """
+    return {"id": user.id, "email": user.email}
 
-app.include_router(projects.router, dependencies=signed_in)
-app.include_router(locations.router, dependencies=signed_in)
-app.include_router(contacts.router, dependencies=signed_in)
-app.include_router(item_types.router, dependencies=signed_in)
-app.include_router(item_models.router, dependencies=signed_in)
-app.include_router(item_statuses.router, dependencies=signed_in)
-app.include_router(items.router, dependencies=signed_in)
-app.include_router(loans.router, dependencies=signed_in)
-app.include_router(feedback.router, dependencies=signed_in)
-app.include_router(users.router, dependencies=signed_in)
-app.include_router(activity.router, dependencies=admin_only)
-# Sign-in is the one door that has to open from outside.
-app.include_router(users.auth_router)
+
+# Every data router is gated: a valid Supabase token whose email is in
+# `allowed_users` (see auth.py). The two /api/meta routes above are the only
+# unauthenticated endpoints.
+auth_required = [Depends(require_user)]
+
+app.include_router(projects.router, dependencies=auth_required)
+app.include_router(locations.router, dependencies=auth_required)
+app.include_router(contacts.router, dependencies=auth_required)
+app.include_router(item_types.router, dependencies=auth_required)
+app.include_router(item_models.router, dependencies=auth_required)
+app.include_router(item_statuses.router, dependencies=auth_required)
+app.include_router(items.router, dependencies=auth_required)
+app.include_router(loans.router, dependencies=auth_required)
+app.include_router(feedback.router, dependencies=auth_required)
+# The activity log is readable by any signed-in user, not just an admin — there
+# are no roles.
+app.include_router(activity.router, dependencies=auth_required)

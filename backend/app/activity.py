@@ -7,7 +7,7 @@ Sitting in front of the whole API, it sees every change by construction.
 
 What it records is deliberately small and stable: a key for the kind of action
 ("create"), a key for the kind of record ("locations"), and *snapshots* of the
-acting username and the record's name. The frontend turns the two keys into
+acting user's email and the record's name. The frontend turns the two keys into
 Hebrew; the snapshots mean an entry still reads correctly after the row it
 describes has been deleted.
 """
@@ -23,7 +23,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from . import tokens
+from . import auth
 from .repository import rows, table
 
 # Reads change nothing, so they are not worth a row apiece.
@@ -45,11 +45,7 @@ TABLE_BY_ENTITY: dict[str, str] = {
     "contacts": "contacts",
     "loans": "loans",
     "feedback": "feedback",
-    "users": "users",
 }
-
-# Signing in is not a row in a table, but it is very much an action.
-AUTH_ENTITY = "auth"
 
 ACTION_BY_METHOD = {"POST": "create", "PATCH": "update", "PUT": "update", "DELETE": "delete"}
 
@@ -59,13 +55,11 @@ ACTION_BY_VERB = {
     "archive": "archive",
     "unarchive": "unarchive",
     "return": "return",
-    "password": "password",
-    "login": "login",
 }
 
 # Tried in order against a record to find the one field worth showing as its
 # name. Whatever the record calls itself, one of these is it.
-LABEL_COLUMNS = ("name", "full_name", "username", "serial_id", "content")
+LABEL_COLUMNS = ("name", "full_name", "serial_id", "content")
 
 # A label is a glance, not the record — long free text is cut down.
 LABEL_MAX = 80
@@ -77,10 +71,15 @@ class ActivityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         entry = _describe(request)
 
-        # A delete leaves nothing to read afterwards, so the record's name has
-        # to be taken while the row still exists.
-        if entry is not None and entry["action"] == "delete" and entry["entity_id"]:
-            entry["label"] = await _safely(_label_from_db, entry["entity"], entry["entity_id"])
+        if entry is not None:
+            # Resolving the actor hits Supabase Auth (see auth.py) — off the
+            # event loop, and never fatal to the request being logged.
+            entry["actor"] = await _safely(_actor, request)
+
+            # A delete leaves nothing to read afterwards, so the record's name
+            # has to be taken while the row still exists.
+            if entry["action"] == "delete" and entry["entity_id"]:
+                entry["label"] = await _safely(_label_from_db, entry["entity"], entry["entity_id"])
 
         response = await call_next(request)
 
@@ -107,7 +106,7 @@ def _describe(request: Request) -> dict[str, Any] | None:
         return None
 
     entity = parts[1]
-    if entity != AUTH_ENTITY and entity not in TABLE_BY_ENTITY:
+    if entity not in TABLE_BY_ENTITY:
         return None
 
     tail = parts[2:]
@@ -129,7 +128,7 @@ def _describe(request: Request) -> dict[str, Any] | None:
         return None
 
     return {
-        "actor": _actor(request),
+        "actor": None,  # filled in by the middleware, off the event loop
         "action": action,
         "entity": entity,
         "entity_id": entity_id,
@@ -139,14 +138,15 @@ def _describe(request: Request) -> dict[str, Any] | None:
 
 def _actor(request: Request) -> str | None:
     """
-    Who is asking, from the signed session token.
+    Who is asking, resolved from the Bearer token against Supabase Auth and the
+    allowlist (see auth.py). The email is the stable, reliable identifier.
 
     Never from a header the caller controls: the log's whole value is that an
     entry can be relied on, and a supplied name can be anything at all — an
     empty one, or a colleague's.
     """
-    payload = tokens.from_header(request.headers.get("authorization", ""))
-    return payload["username"] if payload else None
+    user = auth.user_for_header(request.headers.get("authorization", ""))
+    return user.email if user else None
 
 
 async def _buffer(response: Response) -> tuple[bytes, Response]:
@@ -175,20 +175,10 @@ def _fill_from_response(entry: dict[str, Any], body: bytes) -> None:
     if not isinstance(data, dict):
         return
 
-    # Signing in answers with {token, user} rather than a bare record, and the
-    # token is not something to go looking through — the user underneath it is
-    # what describes the action.
-    if entry["entity"] == AUTH_ENTITY:
-        data = data.get("user") if isinstance(data.get("user"), dict) else {}
-
     if not entry["entity_id"] and _is_uuid(str(data.get("id", ""))):
         entry["entity_id"] = data["id"]
     if not entry["label"]:
         entry["label"] = _label_of(data)
-    # Signing in is the one action whose actor is not known when the request
-    # arrives — nobody is signed in yet. It is whoever the login just returned.
-    if not entry["actor"] and entry["entity"] == AUTH_ENTITY:
-        entry["actor"] = data.get("username")
 
 
 def _label_from_db(entity: str, entity_id: str) -> str | None:

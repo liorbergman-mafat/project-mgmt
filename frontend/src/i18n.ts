@@ -9,7 +9,7 @@ export const t = {
     equipment: "ציוד",
     locations: "יחידות",
     feedback: "משוב מהיחידות",
-    settings: "הגדרות",
+    activity: "פעולות",
   },
 
   common: {
@@ -43,13 +43,12 @@ export const t = {
   auth: {
     title: "ניהול השאלות והטמעות",
     subtitle: "מערכת פנימית. גישה למשתמשים מורשים בלבד.",
-    username: "שם משתמש",
-    password: "סיסמה",
-    submit: "התחברות",
+    googleSignIn: "התחברות עם Google",
+    checking: "מאמת הרשאה…",
+    notAuthorized: "החשבון שאיתו התחברת אינו מורשה לשימוש במערכת. פנה למנהל המערכת.",
     note: "כל הפעולות במערכת נרשמות ומשויכות למשתמש.",
-    missing: "יש להזין שם משתמש וסיסמה.",
-    /* A rejected sign-in shows the server's own message — one text for a wrong
-       username and a wrong password alike. See backend/app/routers/users.py. */
+    /** The avatar's tooltip — the role isn't stored anywhere to read a real one from. */
+    role: "משתמש מערכת",
   },
 
   projects: {
@@ -302,55 +301,9 @@ export const t = {
   },
 
   /* ======================================================================
-   * Settings — reached from the gear at the foot of the nav bar.
+   * Activity — its own screen, reached from the nav bar. Visible to any
+   * signed-in user.
    * =================================================================== */
-  settings: {
-    title: "הגדרות",
-    subtitle: "ניהול משתמשי המערכת ומעקב אחר הפעולות שבוצעו בה",
-    tabs: {
-      users: "משתמשים",
-      activity: "פעולות",
-    },
-    adminOnly: "הגדרות המערכת מותרות למנהלי מערכת בלבד.",
-  },
-
-  users: {
-    title: "משתמשי המערכת",
-    subtitle: "מי מורשה להיכנס למערכת",
-    new: "משתמש חדש",
-    edit: "עריכת משתמש",
-    username: "שם משתמש",
-    fullName: "שם מלא",
-    role: "הרשאה",
-    status: "סטטוס",
-    lastLogin: "כניסה אחרונה",
-    neverLoggedIn: "טרם נכנס",
-    password: "סיסמה",
-    passwordConfirm: "אימות סיסמה",
-    changePassword: "שינוי סיסמה",
-    changePasswordFor: (name: string) => `שינוי סיסמה עבור ${name}`,
-    passwordMismatch: "הסיסמאות אינן תואמות.",
-    currentPassword: "הסיסמה הנוכחית",
-    currentPasswordHint: "כדי לשנות את הסיסמה שלך יש להזין תחילה את הנוכחית.",
-    /** Shown under the field as a rule, not as an error — the API enforces it too. */
-    passwordRule: "הסיסמה חייבת להכיל 12 תווים לפחות.",
-    passwordHint: "הסיסמה מוצפנת בשרת ואינה ניתנת לשחזור — רק להחלפה.",
-    active: "פעיל",
-    disabled: "מושבת",
-    activeHint: "משתמש מושבת נשאר ברשימה, אך אינו יכול להיכנס למערכת.",
-    you: "זה אתה",
-    empty: "אין עדיין משתמשים.",
-    deleteConfirmTitle: "מחיקת משתמש",
-    deleteConfirmMessage: (name: string) =>
-      `למחוק את המשתמש "${name}"? הפעולות שביצע יישארו ביומן. הפעולה אינה הפיכה.`,
-    /** `role` is enforced by the API as well as the UI — see backend/app/deps.py. */
-    roleNote: "רק מנהל מערכת יכול לנהל משתמשים ולצפות ביומן הפעולות.",
-    roles: {
-      admin: "מנהל מערכת",
-      user: "משתמש",
-    } as const,
-  },
-
   activity: {
     title: "פעולות",
     subtitle: "כל שינוי שבוצע במערכת, לפי מי שביצע אותו",
@@ -369,7 +322,6 @@ export const t = {
       create: "הוספות",
       update: "עדכונים",
       delete: "מחיקות",
-      login: "כניסות",
     },
     /** The API records stable keys; these are the words the screen shows. */
     actions: {
@@ -379,8 +331,6 @@ export const t = {
       archive: "העברה לארכיון",
       unarchive: "שחזור מארכיון",
       return: "החזרת פריט",
-      password: "שינוי סיסמה",
-      login: "כניסה למערכת",
       read: "צפייה ברשימה",
     } as const,
     /** What the action was done to. */
@@ -393,8 +343,6 @@ export const t = {
       contacts: "איש קשר",
       loans: "השאלה",
       feedback: "משוב",
-      users: "משתמש",
-      auth: "מערכת",
     } as const,
     /** Nothing technical ever reaches the screen — an unknown key reads plainly. */
     unknownAction: "פעולה",

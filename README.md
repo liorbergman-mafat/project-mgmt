@@ -7,8 +7,8 @@ each borrowing location gave — with the time it was given.
 
 - **Backend:** Python / FastAPI, talking to Supabase (Postgres)
 - **Frontend:** React + TypeScript + Vite, Hebrew RTL interface
-- **Auth:** a real user list with hashed passwords, but no API session yet — see
-  [Security](#security) before putting this on a network
+- **Auth:** Google sign-in via Supabase Auth, plus a server-side allowlist
+  (`allowed_users`) that decides who may actually use the app — see [Security](#security)
 
 ---
 
@@ -36,8 +36,8 @@ projects ──┬─< items >── type_id / model_id / status_id / location_i
 | `items`          | One row per physical item, owned by exactly one project. Type/Model/Status/Location + a free-text serial. |
 | `loans`          | "Item X was loaned to location Y under project Z", with dates + status — separate from the item's own status/location. |
 | `feedback`       | What a location said, when they said it, optionally about one loan.         |
-| `users`          | Who may sign in. Stores only a password hash; managed from Settings → משתמשים. |
-| `activity_log`   | One row per change made through the API, written by middleware. Read on Settings → פעולות. |
+| `allowed_users`  | Authorization allowlist: one email per person who may use the app. Not tied to a project. |
+| `activity_log`   | One row per change made through the API, written by middleware. Read on the פעולות screen. |
 
 ---
 
@@ -47,15 +47,30 @@ projects ──┬─< items >── type_id / model_id / status_id / location_i
 
 In the Supabase dashboard → **SQL Editor** → **New query**, paste and run:
 
-1. `supabase/schema.sql` — tables, indexes, triggers, RLS
+1. `supabase/schema.sql` — tables, indexes, triggers, RLS, and the
+   `allowed_users` allowlist. Edit the bootstrap `insert` at the bottom of the
+   `allowed_users` block (or add rows afterwards) so your own Google email is on
+   the list — nobody can get past the login screen otherwise. The script also
+   drops the old `users` / `login_attempts` tables from the password era.
 2. `supabase/seed.sql` — *optional* demo rows, so the UI isn't empty on first run
 
-`schema.sql` is idempotent, so re-run it after pulling changes that add tables —
-`users` and `activity_log` came in that way. The first sign-in on an empty
-`users` table creates two admin accounts (see `backend/app/routers/users.py`);
-change their passwords from Settings → משתמשים straight after.
+`schema.sql` is idempotent, so re-run it after pulling changes that add tables.
 
-### 2. Configure the backend
+### 2. Enable Google sign-in
+
+1. **Google Cloud Console** → create an OAuth 2.0 Client ID (type: *Web
+   application*). Authorized redirect URI:
+   `https://<your-project-ref>.supabase.co/auth/v1/callback`.
+2. **Supabase → Authentication → Providers → Google** → paste the client ID and
+   secret, enable it.
+3. **Supabase → Authentication → Providers → Email** → **disable** it, and turn
+   off **Allow new users to sign up**. Google is meant to be the only way in;
+   the allowlist is the second gate, not the first.
+4. **Supabase → Authentication → URL Configuration** → add your site URLs
+   (`http://localhost:5173` for dev, plus the deployed origin) to **Redirect
+   URLs**.
+
+### 3. Configure the backend
 
 ```powershell
 cd backend
@@ -66,10 +81,22 @@ Open `backend/.env` and fill in, from **Supabase → Project Settings → API**:
 
 - `SUPABASE_URL` — your project URL
 - `SUPABASE_SERVICE_KEY` — the **`service_role`** key (not `anon`)
+- `SUPABASE_ANON_KEY` — the **`anon` (public)** key. Used only to have Supabase
+  validate a user's sign-in token; it grants no data access on its own.
 
 `backend/.env` is gitignored. Keep it that way.
 
-### 3. Install dependencies
+### 4. Configure the frontend
+
+```powershell
+cd ..\frontend
+Copy-Item .env.example .env
+```
+
+Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (same values as above — the
+anon key is safe in the browser). Leave `VITE_API_BASE_URL` unset for local dev.
+
+### 5. Install dependencies
 
 Already done once, but to reproduce on another machine:
 
@@ -113,17 +140,13 @@ browser only ever talks to one origin.
 
 ## Using it
 
-Sign in with a username and password from the `users` table — see
-[Security](#security) for what that does and does not protect.
+Sign in with **Google**. If the Google account's email isn't in `allowed_users`
+you land on a "not authorized" screen instead of the app — add the email in the
+Supabase table editor (or `insert into allowed_users (email) values (...)`) and
+sign in again. See [Security](#security).
 
-The sidebar on the right holds the four screens; your name, a gear for
-**הגדרות**, and the sign-out button sit at the foot of it, and the bar across
-the top says where you are. Settings has two tabs:
-
-- **משתמשים** — add, view and edit the people who may sign in, and set anyone's
-  password. A disabled user stays on the list but is refused at sign-in.
-- **פעולות** — every change anyone has made, in Hebrew: when, who, what kind of
-  action, and which record. Written automatically; nothing can edit it.
+The sidebar on the right holds the screens; your name and the sign-out button
+sit at the foot of it, and the bar across the top says where you are.
 
 1. **הגדרות** — set up the dropdown option lists once, across three tabs:
    - **ציוד** — the catalogue: every Type, with its Models nested under it.
@@ -149,6 +172,9 @@ the top says where you are. Settings has two tabs:
 4. **משוב מהיחידות** — every project's feedback in one feed, filterable by low
    ratings, this month, or unrated, with this month's volume and the average
    rating per equipment category in the rail beside it.
+5. **פעולות** — every change anyone has made, in Hebrew: when, who (the Google
+   account's email), what kind of action, and which record. Written
+   automatically; nothing can edit it. Any signed-in user may read it.
 
 **סמן כהוחזר** closes a loan and stamps the return time.
 
@@ -164,7 +190,8 @@ fetch, that is the piece to move behind an aggregate endpoint.
 `backend/smoke_test.py` exercises the whole API against your real Supabase
 project — create a project, loan an item, log feedback, mark it returned, check
 the foreign-key guards — then deletes everything it created. Existing rows are
-read but never modified.
+read but never modified. It overrides the auth dependency (it tests the data
+layer, not sign-in), so it needs no token.
 
 ```powershell
 cd backend
@@ -181,6 +208,7 @@ Interactive docs at http://127.0.0.1:8000/docs.
 
 | Method             | Path                            | Purpose                                  |
 | ------------------ | ------------------------------- | ---------------------------------------- |
+| `GET`              | `/api/health`, `/api/me`        | Health check; the signed-in account (`/api/me` needs an allowlisted token) |
 | `GET`              | `/api/projects`                 | Projects with loan/feedback counts       |
 | `GET`              | `/api/projects/{id}/detail`     | Project + its items + its loans + its feedback, one call |
 | `POST`             | `/api/projects/{id}/archive`, `/unarchive` | Move a project in or out of the archive |
@@ -189,66 +217,53 @@ Interactive docs at http://127.0.0.1:8000/docs.
 | `POST`             | `/api/loans/{id}/return`        | Mark returned, stamped now               |
 | `GET/POST`         | `/api/feedback`                 | Filter by `project_id`, `location_id`, `loan_id` |
 | `GET/POST/PATCH/DELETE` | `/api/item-types`, `/api/item-models`, `/api/item-statuses`, `/api/locations` | Dropdown option lists, managed from their own screens |
-| `POST`             | `/api/auth/login`               | Check a username/password pair; returns the user |
-| `GET/POST/PATCH/DELETE` | `/api/users`               | Who may sign in. Never returns a password hash |
-| `POST`             | `/api/users/{id}/password`      | Set a password outright                  |
 | `GET`              | `/api/activity`                 | The activity log, newest first (`?limit=`) |
 
 ---
 
 ## Security
 
-**Every endpoint requires a valid session token.** `POST /api/auth/login` is
-the only route that answers without one — it checks the pair against the
-`users` table, which stores a PBKDF2-SHA256 hash (`backend/app/security.py`),
-and returns a signed bearer token (`backend/app/tokens.py`) that every later
-request carries in an `Authorization` header.
+**Authentication** is Google, through Supabase Auth. Email/password is disabled;
+Google is the only way to obtain a session.
 
-How it is enforced:
+**Authorization** is separate and server-side: `backend/app/auth.py` verifies the
+token on every request and checks its email against the `allowed_users` table,
+returning 403 if it's absent. Signing in with Google is necessary but not
+sufficient — the account also has to be on the list. Manage the list from the
+Supabase table editor or with SQL; it's the whole user-management surface. There
+are no roles: every allowlisted user can do everything, including read the
+activity log.
 
-- `current_user` (`backend/app/deps.py`) hangs off every router. It verifies
-  the token's HMAC signature and expiry, then **re-reads the user from the
-  database** — so disabling or deleting an account ends its open sessions on
-  the next request rather than whenever the token expires.
-- `role` is a real permission. Managing users and reading the activity log
-  require `admin` (`require_admin`); changing a password is either an
-  administrator resetting someone else's or a user changing their own with the
-  current one in hand.
-- Sign-in is rate limited: eight failures for one username inside fifteen
-  minutes are refused with a 429 until the window slides past.
-- The activity log takes the acting username from the signed token, never from
-  a request header, so an entry cannot be forged to name someone else.
-- Tokens live twelve hours. Rotating `SESSION_SECRET` invalidates every open
-  session at once.
-
-Also in place:
-
+- Every `/api/*` data route depends on `require_user` (see `main.py`). The only
+  unauthenticated endpoint is `/api/health`; `/api/me` still needs a valid,
+  allowlisted token to return 200.
+- The frontend attaches the Supabase access token to every call (`api.ts`) and
+  shows a "not authorized" screen when the allowlist check fails (`auth.ts`).
+- The activity log takes the acting identity from that verified token, never
+  from a request header, so an entry cannot be forged to name someone else.
 - RLS is enabled on every table with **no policies**, so the public `anon` key
-  can read nothing. The database is only reachable through this API.
+  can read nothing directly. The database is only reachable through this API.
 - The `service_role` key lives only in `backend/.env` — gitignored, and listed
   in `.vercelignore` so a local `vercel deploy` cannot upload it. (`.gitignore`
-  does *not* apply to Vercel uploads while a `.vercelignore` exists.)
-- No account is seeded automatically. Set `BOOTSTRAP_USERNAME` and
-  `BOOTSTRAP_PASSWORD` for the first sign-in on an empty table, then unset them.
-- Passwords are 12–128 characters, hashed, never stored or returned in plaintext.
+  does *not* apply to Vercel uploads while a `.vercelignore` exists.) The `anon`
+  key is public by design (it's in the frontend bundle too) and grants no data
+  access on its own.
 - The interactive docs at `/docs` are off unless `DEBUG=true`.
 - `vercel.json` sets CSP, HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
-  `Referrer-Policy`, and `Permissions-Policy` on every response.
+  `Referrer-Policy`, and `Permissions-Policy` on every response. The CSP's
+  `connect-src` allows `https://*.supabase.co` so the browser can reach Supabase
+  Auth.
 
-Still worth knowing: the session token is held in `sessionStorage`, so it is
-reachable from JavaScript. There is no XSS sink in the app today, which makes
-that an acceptable trade; an `HttpOnly` cookie is stronger and costs a CSRF
-token on writes. And there is no per-user data partition — this is a
-single-tenant tool where all signed-in staff see all records by design.
+Still needed before a wider rollout: HTTPS everywhere, and per-user RLS policies
+if the database is ever exposed beyond this backend. Don't bind the dev server
+to `0.0.0.0`.
 
 ---
 
 ## Repository
 
-Git is initialised locally with a `main` branch. Nothing is pushed — add your
-remote and push branches yourself when you're ready:
-
 ```powershell
-git remote add origin https://github.com/<you>/<repo>.git
-git push -u origin main
+git push origin main
 ```
+
+See `DEPLOY.md` for the Vercel setup.

@@ -3,13 +3,14 @@ import type { ReactNode } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useMatch } from "react-router-dom";
 import { api } from "./api";
 import { initials, useSession } from "./auth";
+import type { SessionUser } from "./auth";
 import { ParentMark } from "./components/ParentMark";
 import {
+  ActivityIcon,
   EquipmentIcon,
   FeedbackIcon,
   LocationsIcon,
   ProjectsIcon,
-  SettingsIcon,
   SignOutIcon,
 } from "./components/icons";
 import { useAsync } from "./hooks";
@@ -21,23 +22,35 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import EquipmentPage from "./pages/EquipmentPage";
 import { LocationsPage, LocationDetailPage } from "./pages/LocationsPage";
 import FeedbackPage from "./pages/FeedbackPage";
-import SettingsPage from "./pages/SettingsPage";
-import type { ProjectSummary, User } from "./types";
+import ActivityPage from "./pages/ActivityPage";
+import type { ProjectSummary } from "./types";
 
 export default function App() {
-  const { user, signIn, signOut, refresh } = useSession();
+  const { user, loading, authorized, signInWithGoogle, signOut } = useSession();
+
+  // Reading the stored session is near-instant; this just avoids a flash of the
+  // login screen before it resolves.
+  if (loading) return null;
+
+  const ready = !!user && authorized === true;
+
+  const login = (
+    <LoginPage
+      onGoogle={signInWithGoogle}
+      onSignOut={signOut}
+      checking={!!user && authorized === null}
+      blocked={!!user && authorized === false}
+    />
+  );
 
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={user ? <Navigate to="/projects" replace /> : <LoginPage onSignIn={signIn} />}
-      />
+      <Route path="/login" element={ready ? <Navigate to="/projects" replace /> : login} />
       <Route
         path="/*"
         element={
-          user ? (
-            <Shell user={user} onSignOut={signOut} onUserChanged={refresh} />
+          ready && user ? (
+            <Shell user={user} onSignOut={signOut} />
           ) : (
             <Navigate to="/login" replace />
           )
@@ -51,15 +64,7 @@ export default function App() {
  * The signed-in shell: the nav sidebar on the reading edge, a thin top bar
  * over the main pane, and the routes.
  * ===================================================================== */
-function Shell({
-  user,
-  onSignOut,
-  onUserChanged,
-}: {
-  user: User;
-  onSignOut: () => void;
-  onUserChanged: (user: User) => void;
-}) {
+function Shell({ user, onSignOut }: { user: SessionUser; onSignOut: () => void }) {
   const projects = useAsync(() => api.projects.list(), []);
   const items = useAsync(() => api.items.list(), []);
   const locations = useAsync(() => api.locations.list(), []);
@@ -73,8 +78,8 @@ function Shell({
   }, [projects.reload, items.reload, locations.reload, feedback.reload]);
 
   const shell = useMemo(
-    () => ({ user, projects, items, locations, feedback, reloadAll, refresh: onUserChanged }),
-    [user, projects, items, locations, feedback, reloadAll, onUserChanged],
+    () => ({ user, projects, items, locations, feedback, reloadAll }),
+    [user, projects, items, locations, feedback, reloadAll],
   );
 
   // Archived projects are out of sight on the list, so they are out of the
@@ -119,28 +124,22 @@ function Shell({
               count={(feedback.data ?? []).length}
               icon={<FeedbackIcon size={17} />}
             />
+            <NavItem
+              to="/activity"
+              label={t.nav.activity}
+              icon={<ActivityIcon size={17} />}
+            />
           </nav>
 
           <div className="sidebar-footer">
-            <span className="avatar" title={t.users.roles[user.role]} aria-hidden="true">
-              {initials(user.username)}
+            {/* The role is the only thing the footer has no room to spell out. */}
+            <span className="avatar" title={t.auth.role} aria-hidden="true">
+              {initials(user.name)}
             </span>
             <div className="user">
-              <div className="user-name">{user.full_name || user.username}</div>
-              <div className="user-role">{t.users.roles[user.role]}</div>
+              <div className="user-name">{user.name}</div>
+              <div className="user-role">{t.auth.role}</div>
             </div>
-            {/* Settings and sign-out are the two things you do *to* the
-                session rather than inside it, so they share its corner. */}
-            {user.role === "admin" && (
-              <NavLink
-                to="/settings"
-                className={({ isActive }) => `footer-btn${isActive ? " active" : ""}`}
-                title={t.nav.settings}
-                aria-label={t.nav.settings}
-              >
-                <SettingsIcon />
-              </NavLink>
-            )}
             <button
               type="button"
               className="footer-btn"
@@ -172,21 +171,13 @@ function Shell({
               <Route path="/locations" element={<LocationsPage />} />
               <Route path="/locations/:locationId" element={<LocationDetailPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
-              {/* One component behind both tabs — see SettingsPage. Guarded
-                  here as well as inside it, so the address bar behaves the
-                  same as the nav. The API is what actually enforces it. */}
-              <Route
-                path="/settings/*"
-                element={
-                  user.role === "admin" ? <SettingsPage /> : <Navigate to="/projects" replace />
-                }
-              />
+              <Route path="/activity" element={<ActivityPage />} />
               {/* The units routes moved to /locations when it became a screen of its own. */}
               <Route path="/units" element={<Navigate to="/locations" replace />} />
               <Route path="/units/:locationId" element={<Navigate to="/locations" replace />} />
               {/* Equipment, locations and statuses each moved out to a screen
-                  of their own; what is left under Settings is users and the
-                  activity log. */}
+                  of their own; user management went away with password sign-in. */}
+              <Route path="/settings/*" element={<Navigate to="/activity" replace />} />
             </Routes>
           </main>
         </div>
@@ -210,17 +201,14 @@ function Breadcrumb({ projects }: { projects: ProjectSummary[] | null }) {
     section === "equipment" ? t.nav.equipment
     : section === "locations" ? t.nav.locations
     : section === "feedback" ? t.nav.feedback
-    : section === "settings" ? t.nav.settings
+    : section === "activity" ? t.nav.activity
     : t.nav.projects;
 
   // Only the project screen has a leaf: its name comes off the list the shell
   // already fetched rather than a second request, so while that list is still
   // in flight the crumb is just the section and fills in when it lands.
-  const leaf =
-    project ? ((projects ?? []).find((p) => p.id === project.params.projectId)?.name ?? "")
-    : section === "settings" ?
-      pathname.endsWith("/activity") ? t.settings.tabs.activity
-      : t.settings.tabs.users
+  const leaf = project
+    ? ((projects ?? []).find((p) => p.id === project.params.projectId)?.name ?? "")
     : "";
 
   return (
@@ -247,7 +235,7 @@ function NavItem({
 }: {
   to: string;
   label: string;
-  count: number;
+  count?: number;
   icon: ReactNode;
 }) {
   return (
@@ -256,7 +244,7 @@ function NavItem({
         {icon}
       </span>
       <span className="nav-label">{label}</span>
-      <span className="nav-count num">{count}</span>
+      {count !== undefined && <span className="nav-count num">{count}</span>}
     </NavLink>
   );
 }

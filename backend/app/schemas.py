@@ -8,7 +8,6 @@ from pydantic import BaseModel
 
 ProjectStatus = Literal["active", "completed", "archived"]
 LoanStatus = Literal["loaned", "returned", "lost"]
-UserRole = Literal["admin", "user"]
 
 
 # --------------------------------------------------------------------------
@@ -272,66 +271,6 @@ class ProjectDetail(BaseModel):
     items: list[Item]
     loans: list[Loan]
     feedback: list[Feedback]
-
-
-# --------------------------------------------------------------------------
-# Users — who may sign in. Managed from the Settings screen.
-# --------------------------------------------------------------------------
-class UserCreate(BaseModel):
-    username: str
-    full_name: Optional[str] = None
-    role: UserRole = "user"
-    is_active: bool = True
-    # Write-only: hashed on arrival, and never echoed back by any response.
-    password: str
-
-
-class UserUpdate(BaseModel):
-    """Everything but the password, which has its own endpoint."""
-
-    username: Optional[str] = None
-    full_name: Optional[str] = None
-    role: Optional[UserRole] = None
-    is_active: Optional[bool] = None
-
-
-class PasswordChange(BaseModel):
-    """
-    `current_password` is required when changing your own password; an
-    administrator resetting someone else's has nothing to prove and may omit
-    it. See routers/users.py:set_password.
-    """
-
-    password: str
-    current_password: Optional[str] = None
-
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-
-class User(BaseModel):
-    """A user as the UI sees them — the password hash never leaves the server."""
-
-    id: UUID
-    username: str
-    full_name: Optional[str] = None
-    role: UserRole
-    is_active: bool
-    last_login_at: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class LoginResponse(BaseModel):
-    """
-    What sign-in hands back: the bearer token every later request carries, and
-    the user record the shell is built from.
-    """
-
-    token: str
-    user: User
 
 
 # --------------------------------------------------------------------------

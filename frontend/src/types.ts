@@ -112,20 +112,6 @@ export interface ProjectDetail {
   feedback: Feedback[];
 }
 
-/** admin / user is a label the UI shows — the API cannot enforce it. See auth.ts. */
-export type UserRole = "admin" | "user";
-
-export interface User {
-  id: string;
-  username: string;
-  full_name: string | null;
-  role: UserRole;
-  is_active: boolean;
-  last_login_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 /**
  * One recorded action, as the "פעולות" screen reads it.
  *
