@@ -256,23 +256,30 @@ alter table feedback      enable row level security;
 -- *use the app*. The FastAPI backend checks every request's token email against
 -- this table (see backend/app/auth.py) and returns 403 if it is absent.
 --
--- Manage it straight from the Supabase dashboard (Table editor -> allowed_users)
--- or with SQL:
+-- `is_admin` marks who may edit this list from the הרשאות screen in the app
+-- (it grants nothing else — there are no other roles). Manage the list from
+-- that screen, or straight from the Supabase dashboard, or with SQL:
 --     insert into allowed_users (email) values ('someone@gmail.com');
+--     update allowed_users set is_admin = true where email = 'someone@gmail.com';
 --     delete from allowed_users where email = 'someone@gmail.com';
 -- Emails are stored lower-case; the backend lower-cases before comparing.
 -- ---------------------------------------------------------------------------
 create table if not exists allowed_users (
     email      text primary key check (email = lower(email)),
+    is_admin   boolean     not null default false,
     note       text,
     created_at timestamptz not null default now()
 );
 
+-- Migration for databases created before is_admin existed.
+alter table allowed_users add column if not exists is_admin boolean not null default false;
+
 -- Bootstrap: without at least one row here, nobody can get past the login
--- screen. Replace / add rows for the real users. Safe to re-run.
-insert into allowed_users (email, note)
-values ('liorbrgmn@gmail.com', 'initial admin')
-on conflict (email) do nothing;
+-- screen, and without an admin nobody can edit the list from the app. Replace
+-- / add rows for the real users. Safe to re-run.
+insert into allowed_users (email, is_admin, note)
+values ('liorbrgmn@gmail.com', true, 'initial admin')
+on conflict (email) do update set is_admin = true;
 
 -- ---------------------------------------------------------------------------
 -- activity_log — one row per change made through the API, written by the

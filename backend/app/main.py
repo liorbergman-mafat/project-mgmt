@@ -9,6 +9,7 @@ from .activity import ActivityMiddleware
 from .auth import AuthUser, require_user
 from .config import get_settings
 from .routers import (
+    access,
     activity,
     contacts,
     feedback,
@@ -102,13 +103,13 @@ def health() -> dict[str, str]:
 
 
 @app.get("/api/me", tags=["meta"])
-def me(user: AuthUser = Depends(require_user)) -> dict[str, str]:
+def me(user: AuthUser = Depends(require_user)) -> dict[str, object]:
     """
     Who the caller is, if their token is valid and their account is authorized.
     The frontend calls this once after sign-in to decide between the app and
-    the "not authorized" screen.
+    the "not authorized" screen, and reads `is_admin` to show the הרשאות screen.
     """
-    return {"id": user.id, "email": user.email}
+    return {"id": user.id, "email": user.email, "name": user.name, "is_admin": user.is_admin}
 
 
 # Every data router is gated: a valid Supabase token whose email is in
@@ -125,6 +126,8 @@ app.include_router(item_statuses.router, dependencies=auth_required)
 app.include_router(items.router, dependencies=auth_required)
 app.include_router(loans.router, dependencies=auth_required)
 app.include_router(feedback.router, dependencies=auth_required)
-# The activity log is readable by any signed-in user, not just an admin — there
-# are no roles.
+# The activity log is readable by any signed-in user.
 app.include_router(activity.router, dependencies=auth_required)
+# Managing the allowlist is admin-only — the router carries its own
+# `require_admin` dependency.
+app.include_router(access.router)

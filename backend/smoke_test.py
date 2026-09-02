@@ -17,7 +17,9 @@ from app.main import app
 
 # This test exercises the data layer, not sign-in. Bypass the auth dependency
 # so the requests below don't all 401 — the real gate is covered separately.
-app.dependency_overrides[require_user] = lambda: AuthUser(id="smoke", email="smoke@test")
+app.dependency_overrides[require_user] = lambda: AuthUser(
+    id="smoke", email="smoke@test", name="Smoke Test", is_admin=True
+)
 
 client = TestClient(app)
 passed, failed = 0, 0

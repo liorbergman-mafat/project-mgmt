@@ -129,3 +129,14 @@ export interface ActivityEntry {
   label: string | null;
   created_at: string;
 }
+
+/**
+ * One row of the authorization allowlist, as the הרשאות screen reads it.
+ * `is_admin` marks who may edit the list; it grants nothing else.
+ */
+export interface AllowedUser {
+  email: string;
+  is_admin: boolean;
+  note: string | null;
+  created_at: string;
+}

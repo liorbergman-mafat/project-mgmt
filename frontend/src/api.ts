@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import type {
   ActivityEntry,
+  AllowedUser,
   Contact,
   Feedback,
   Item,
@@ -71,7 +72,8 @@ const del = (path: string) => request<void>(path, { method: "DELETE" });
 export const api = {
   auth: {
     /** Resolves if the signed-in account is on the allowlist; rejects (403) otherwise. */
-    me: () => request<{ id: string; email: string }>("/me"),
+    me: () =>
+      request<{ id: string; email: string; name: string; is_admin: boolean }>("/me"),
   },
   projects: {
     list: () => request<ProjectSummary[]>("/projects"),
@@ -152,5 +154,14 @@ export const api = {
   /** Read-only: entries are written by the API itself, never by a screen. */
   activity: {
     list: (limit?: number) => request<ActivityEntry[]>(`/activity${limit ? `?limit=${limit}` : ""}`),
+  },
+  /** The authorization allowlist. Admin-only end to end (the API enforces it). */
+  access: {
+    list: () => request<AllowedUser[]>("/allowed-users"),
+    add: (body: { email: string; is_admin?: boolean; note?: string | null }) =>
+      post<AllowedUser>("/allowed-users", body),
+    update: (email: string, body: { is_admin?: boolean; note?: string | null }) =>
+      patch<AllowedUser>(`/allowed-users/${encodeURIComponent(email)}`, body),
+    remove: (email: string) => del(`/allowed-users/${encodeURIComponent(email)}`),
   },
 };

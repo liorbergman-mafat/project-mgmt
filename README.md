@@ -36,7 +36,7 @@ projects ──┬─< items >── type_id / model_id / status_id / location_i
 | `items`          | One row per physical item, owned by exactly one project. Type/Model/Status/Location + a free-text serial. |
 | `loans`          | "Item X was loaned to location Y under project Z", with dates + status — separate from the item's own status/location. |
 | `feedback`       | What a location said, when they said it, optionally about one loan.         |
-| `allowed_users`  | Authorization allowlist: one email per person who may use the app. Not tied to a project. |
+| `allowed_users`  | Authorization allowlist: one email per person who may use the app, plus an `is_admin` flag marking who may edit the list. Managed from the הרשאות screen. |
 | `activity_log`   | One row per change made through the API, written by middleware. Read on the פעולות screen. |
 
 ---
@@ -141,9 +141,9 @@ browser only ever talks to one origin.
 ## Using it
 
 Sign in with **Google**. If the Google account's email isn't in `allowed_users`
-you land on a "not authorized" screen instead of the app — add the email in the
-Supabase table editor (or `insert into allowed_users (email) values (...)`) and
-sign in again. See [Security](#security).
+you land on a "not authorized" screen instead of the app — an admin adds the
+email from the **הרשאות** screen (or `insert into allowed_users (email) values
+(...)` in Supabase), and you sign in again. See [Security](#security).
 
 The sidebar on the right holds the screens; your name and the sign-out button
 sit at the foot of it, and the bar across the top says where you are.
@@ -173,8 +173,11 @@ sit at the foot of it, and the bar across the top says where you are.
    ratings, this month, or unrated, with this month's volume and the average
    rating per equipment category in the rail beside it.
 5. **פעולות** — every change anyone has made, in Hebrew: when, who (the Google
-   account's email), what kind of action, and which record. Written
+   name and email), what kind of action, and which record. Written
    automatically; nothing can edit it. Any signed-in user may read it.
+6. **הרשאות** *(admins only)* — the allowlist: add or remove the emails that may
+   use the app, and toggle who is an admin. An admin may edit this list; it
+   grants nothing else. The last admin cannot be removed or demoted.
 
 **סמן כהוחזר** closes a loan and stamps the return time.
 
@@ -218,6 +221,7 @@ Interactive docs at http://127.0.0.1:8000/docs.
 | `GET/POST`         | `/api/feedback`                 | Filter by `project_id`, `location_id`, `loan_id` |
 | `GET/POST/PATCH/DELETE` | `/api/item-types`, `/api/item-models`, `/api/item-statuses`, `/api/locations` | Dropdown option lists, managed from their own screens |
 | `GET`              | `/api/activity`                 | The activity log, newest first (`?limit=`) |
+| `GET/POST/PATCH/DELETE` | `/api/allowed-users`       | The authorization allowlist. **Admin only** (`require_admin`) |
 
 ---
 
@@ -229,14 +233,19 @@ Google is the only way to obtain a session.
 **Authorization** is separate and server-side: `backend/app/auth.py` verifies the
 token on every request and checks its email against the `allowed_users` table,
 returning 403 if it's absent. Signing in with Google is necessary but not
-sufficient — the account also has to be on the list. Manage the list from the
-Supabase table editor or with SQL; it's the whole user-management surface. There
-are no roles: every allowlisted user can do everything, including read the
-activity log.
+sufficient — the account also has to be on the list.
 
-- Every `/api/*` data route depends on `require_user` (see `main.py`). The only
-  unauthenticated endpoint is `/api/health`; `/api/me` still needs a valid,
-  allowlisted token to return 200.
+The only role is `is_admin`, a flag on `allowed_users`. An admin may edit the
+allowlist (the הרשאות screen / `/api/allowed-users`, gated by `require_admin`)
+and nothing else — every other screen and endpoint treats admins and
+non-admins identically. The list can still be edited straight from Supabase.
+The API refuses to remove or demote the last admin, so the list cannot lock
+itself.
+
+- Every `/api/*` data route depends on `require_user` (see `main.py`); the
+  allowlist router adds `require_admin` on top. The only unauthenticated
+  endpoint is `/api/health`; `/api/me` still needs a valid, allowlisted token
+  to return 200, and reports `is_admin`.
 - The frontend attaches the Supabase access token to every call (`api.ts`) and
   shows a "not authorized" screen when the allowlist check fails (`auth.ts`).
 - The activity log takes the acting identity from that verified token, never

@@ -13,6 +13,7 @@ import {
   LocationsIcon,
   ProjectsIcon,
   SignOutIcon,
+  UsersIcon,
 } from "./components/icons";
 import { useAsync } from "./hooks";
 import { t } from "./i18n";
@@ -24,10 +25,11 @@ import EquipmentPage from "./pages/EquipmentPage";
 import { LocationsPage, LocationDetailPage } from "./pages/LocationsPage";
 import FeedbackPage from "./pages/FeedbackPage";
 import ActivityPage from "./pages/ActivityPage";
+import AccessPage from "./pages/AccessPage";
 import type { ProjectSummary } from "./types";
 
 export default function App() {
-  const { user, loading, authorized, authError, signInWithGoogle, signOut } = useSession();
+  const { user, loading, authorized, authError, isAdmin, signInWithGoogle, signOut } = useSession();
 
   // No Supabase env in this build — sign-in cannot work. Say so instead of
   // rendering a login screen whose button does nothing.
@@ -56,7 +58,7 @@ export default function App() {
         path="/*"
         element={
           ready && user ? (
-            <Shell user={user} onSignOut={signOut} />
+            <Shell user={user} isAdmin={isAdmin} onSignOut={signOut} />
           ) : (
             <Navigate to="/login" replace />
           )
@@ -70,7 +72,15 @@ export default function App() {
  * The signed-in shell: the nav sidebar on the reading edge, a thin top bar
  * over the main pane, and the routes.
  * ===================================================================== */
-function Shell({ user, onSignOut }: { user: SessionUser; onSignOut: () => void }) {
+function Shell({
+  user,
+  isAdmin,
+  onSignOut,
+}: {
+  user: SessionUser;
+  isAdmin: boolean;
+  onSignOut: () => void;
+}) {
   const projects = useAsync(() => api.projects.list(), []);
   const items = useAsync(() => api.items.list(), []);
   const locations = useAsync(() => api.locations.list(), []);
@@ -84,8 +94,8 @@ function Shell({ user, onSignOut }: { user: SessionUser; onSignOut: () => void }
   }, [projects.reload, items.reload, locations.reload, feedback.reload]);
 
   const shell = useMemo(
-    () => ({ user, projects, items, locations, feedback, reloadAll }),
-    [user, projects, items, locations, feedback, reloadAll],
+    () => ({ user, isAdmin, projects, items, locations, feedback, reloadAll }),
+    [user, isAdmin, projects, items, locations, feedback, reloadAll],
   );
 
   // Archived projects are out of sight on the list, so they are out of the
@@ -135,6 +145,13 @@ function Shell({ user, onSignOut }: { user: SessionUser; onSignOut: () => void }
               label={t.nav.activity}
               icon={<ActivityIcon size={17} />}
             />
+            {isAdmin && (
+              <NavItem
+                to="/access"
+                label={t.nav.access}
+                icon={<UsersIcon size={17} />}
+              />
+            )}
           </nav>
 
           <div className="sidebar-footer">
@@ -178,6 +195,12 @@ function Shell({ user, onSignOut }: { user: SessionUser; onSignOut: () => void }
               <Route path="/locations/:locationId" element={<LocationDetailPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
               <Route path="/activity" element={<ActivityPage />} />
+              {/* Admin-only; the API enforces it too. A non-admin who types the
+                  address just goes back to the landing screen. */}
+              <Route
+                path="/access"
+                element={isAdmin ? <AccessPage /> : <Navigate to="/projects" replace />}
+              />
               {/* The units routes moved to /locations when it became a screen of its own. */}
               <Route path="/units" element={<Navigate to="/locations" replace />} />
               <Route path="/units/:locationId" element={<Navigate to="/locations" replace />} />
@@ -208,6 +231,7 @@ function Breadcrumb({ projects }: { projects: ProjectSummary[] | null }) {
     : section === "locations" ? t.nav.locations
     : section === "feedback" ? t.nav.feedback
     : section === "activity" ? t.nav.activity
+    : section === "access" ? t.nav.access
     : t.nav.projects;
 
   // Only the project screen has a leaf: its name comes off the list the shell

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from urllib.parse import unquote
 from uuid import UUID
 
 from starlette.concurrency import run_in_threadpool
@@ -45,6 +46,7 @@ TABLE_BY_ENTITY: dict[str, str] = {
     "contacts": "contacts",
     "loans": "loans",
     "feedback": "feedback",
+    "allowed-users": "allowed_users",
 }
 
 ACTION_BY_METHOD = {"POST": "create", "PATCH": "update", "PUT": "update", "DELETE": "delete"}
@@ -59,7 +61,7 @@ ACTION_BY_VERB = {
 
 # Tried in order against a record to find the one field worth showing as its
 # name. Whatever the record calls itself, one of these is it.
-LABEL_COLUMNS = ("name", "full_name", "serial_id", "content")
+LABEL_COLUMNS = ("name", "full_name", "email", "serial_id", "content")
 
 # A label is a glance, not the record — long free text is cut down.
 LABEL_MAX = 80
@@ -113,6 +115,15 @@ def _describe(request: Request) -> dict[str, Any] | None:
     entity_id = next((part for part in tail if _is_uuid(part)), None)
     verb = next((part for part in reversed(tail) if not _is_uuid(part)), None)
 
+    # A trailing segment that is neither an id nor a known verb identifies the
+    # target directly — an email in /api/allowed-users/<email>, say. Keep it as
+    # the label (so a delete still says which row), and let the HTTP method
+    # decide the action.
+    seed_label: str | None = None
+    if verb and verb not in ACTION_BY_VERB:
+        seed_label = unquote(verb)
+        verb = None
+
     if request.method == "GET":
         # Only the bulk directory read, not a single record fetched to fill
         # in a screen — one row at a time is ordinary browsing.
@@ -132,21 +143,21 @@ def _describe(request: Request) -> dict[str, Any] | None:
         "action": action,
         "entity": entity,
         "entity_id": entity_id,
-        "label": None,
+        "label": seed_label,
     }
 
 
 def _actor(request: Request) -> str | None:
     """
     Who is asking, resolved from the Bearer token against Supabase Auth and the
-    allowlist (see auth.py). The email is the stable, reliable identifier.
+    allowlist (see auth.py), as "Name (email)".
 
     Never from a header the caller controls: the log's whole value is that an
     entry can be relied on, and a supplied name can be anything at all — an
     empty one, or a colleague's.
     """
     user = auth.user_for_header(request.headers.get("authorization", ""))
-    return user.email if user else None
+    return user.actor if user else None
 
 
 async def _buffer(response: Response) -> tuple[bytes, Response]:

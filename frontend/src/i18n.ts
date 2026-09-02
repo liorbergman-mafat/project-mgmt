@@ -10,6 +10,7 @@ export const t = {
     locations: "יחידות",
     feedback: "משוב מהיחידות",
     activity: "פעולות",
+    access: "הרשאות",
   },
 
   common: {
@@ -343,10 +344,39 @@ export const t = {
       contacts: "איש קשר",
       loans: "השאלה",
       feedback: "משוב",
+      "allowed-users": "משתמש מורשה",
     } as const,
     /** Nothing technical ever reaches the screen — an unknown key reads plainly. */
     unknownAction: "פעולה",
     unknownEntity: "רשומה",
+  },
+
+  /* ======================================================================
+   * הרשאות — the authorization allowlist. Admin-only.
+   * =================================================================== */
+  access: {
+    title: "הרשאות",
+    subtitle: "מי מורשה להשתמש במערכת. הכניסה עצמה היא דרך חשבון Google.",
+    sectionLabel: "משתמשים מורשים",
+    add: "הוספת משתמש",
+    addTitle: "הוספת משתמש מורשה",
+    email: "כתובת אימייל (Google)",
+    emailHint: "בדיוק כפי שהיא מופיעה בחשבון ה־Google של המשתמש.",
+    note: "הערה",
+    notePlaceholder: "למשל: שם מלא, תפקיד",
+    admin: "מנהל",
+    adminHint: "מנהל יכול לערוך את רשימת ההרשאות. אין לכך השפעה על שאר המסכים.",
+    isAdmin: "מנהל מערכת",
+    member: "משתמש",
+    you: "זה אתה",
+    added: "נוסף",
+    empty: "אין עדיין משתמשים מורשים.",
+    invalidEmail: "כתובת אימייל לא תקינה.",
+    makeAdmin: "הפוך למנהל",
+    revokeAdmin: "בטל הרשאת מנהל",
+    removeTitle: "הסרת הרשאה",
+    removeMessage: (email: string) =>
+      `להסיר את "${email}" מרשימת המורשים? המשתמש לא יוכל להיכנס יותר. הפעולה אינה הפיכה.`,
   },
 } as const;
 

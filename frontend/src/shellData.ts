@@ -15,6 +15,8 @@ import type { Feedback, Item, Location, ProjectSummary } from "./types";
 export interface ShellData {
   /** The signed-in user, from the Google session. */
   user: SessionUser;
+  /** Whether this account may edit the allowlist (הרשאות screen). */
+  isAdmin: boolean;
   projects: AsyncState<ProjectSummary[]>;
   items: AsyncState<Item[]>;
   locations: AsyncState<Location[]>;

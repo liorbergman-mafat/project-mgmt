@@ -293,3 +293,25 @@ class ActivityEntry(BaseModel):
     entity_id: Optional[UUID] = None
     label: Optional[str] = None
     created_at: datetime
+
+
+# --------------------------------------------------------------------------
+# Allowed users — the authorization allowlist, managed from the הרשאות screen.
+# `is_admin` marks who may edit this list; it grants nothing else.
+# --------------------------------------------------------------------------
+class AllowedUserCreate(BaseModel):
+    email: str
+    is_admin: bool = False
+    note: Optional[str] = None
+
+
+class AllowedUserUpdate(BaseModel):
+    is_admin: Optional[bool] = None
+    note: Optional[str] = None
+
+
+class AllowedUser(BaseModel):
+    email: str
+    is_admin: bool = False
+    note: Optional[str] = None
+    created_at: datetime

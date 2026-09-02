@@ -50,6 +50,8 @@ export function useSession() {
   // The server's own message when the /api/me check fails — "not on the
   // allowlist" reads differently from "the backend rejected the token".
   const [authError, setAuthError] = useState<string | null>(null);
+  // From /api/me: whether this account may edit the allowlist (הרשאות screen).
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -72,6 +74,7 @@ export function useSession() {
       setSession(next);
       setAuthorized(null); // re-check against the allowlist on any change
       setAuthError(null);
+      setIsAdmin(false);
     });
 
     return () => {
@@ -88,10 +91,11 @@ export function useSession() {
     let active = true;
     api.auth
       .me()
-      .then(() => {
+      .then((me) => {
         if (!active) return;
         setAuthorized(true);
         setAuthError(null);
+        setIsAdmin(me.is_admin);
       })
       .catch((err: unknown) => {
         if (!active) return;
@@ -114,7 +118,15 @@ export function useSession() {
     await supabase.auth.signOut();
   }, []);
 
-  return { user: toUser(session), loading, authorized, authError, signInWithGoogle, signOut };
+  return {
+    user: toUser(session),
+    loading,
+    authorized,
+    authError,
+    isAdmin,
+    signInWithGoogle,
+    signOut,
+  };
 }
 
 /** "ליאור ברגמן" → "ל.ב" — the two-letter monogram in the nav bar avatar. */

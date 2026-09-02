@@ -14,7 +14,9 @@ once from the Supabase dashboard (see the README's *First-time setup*).
 
 - The repo is on GitHub (`liorbergman-mafat/project-mgmt`).
 - The Supabase schema is applied (`supabase/schema.sql`), with at least one row
-  in `allowed_users` — your Google email.
+  in `allowed_users` — your Google email, `is_admin = true` (the bootstrap
+  `insert` in the script does this for `liorbrgmn@gmail.com`). The first admin
+  can then add everyone else from the הרשאות screen.
 - Google sign-in is enabled in Supabase Auth (README → *Enable Google sign-in*).
 
 ---

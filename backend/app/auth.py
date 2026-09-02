@@ -7,12 +7,13 @@ and Supabase handles it end to end.
 
 Whether that account may use this app is a separate decision, and it stays
 here: the account's email must appear in the `allowed_users` table. That is
-*authorization*, and it is ours to control regardless of who can obtain a
-Google login. Adding or removing a row in `allowed_users` (from the Supabase
-dashboard, or SQL) is the whole user-management surface.
+*authorization*. The one distinction the table draws is `is_admin` — an admin
+may edit the allowlist itself (the הרשאות screen); everyone else has the same
+access to everything else.
 
 `require_user` is applied to every data router in `main.py`, so no endpoint is
-reachable without a valid token whose email is on the list.
+reachable without a valid token whose email is on the list. `require_admin`
+gates the allowlist-management router on top of that.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import time
 from dataclasses import dataclass
 from functools import lru_cache
 
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request
 from supabase import Client, create_client
 
 from .config import get_settings
@@ -30,12 +31,26 @@ from .repository import table
 # Shown to the browser when the token is fine but the account is not listed.
 # Hebrew, to match the rest of the user-facing error copy.
 NOT_AUTHORIZED_DETAIL = "החשבון שאיתו התחברת אינו מורשה לשימוש במערכת. פנה למנהל המערכת."
+NOT_ADMIN_DETAIL = "הפעולה מותרת למנהלי מערכת בלבד."
 
 
 @dataclass(frozen=True)
 class AuthUser:
     id: str
     email: str
+    name: str
+    is_admin: bool = False
+
+    @property
+    def actor(self) -> str:
+        """How this user is credited in the activity log: "Name (email)"."""
+        if self.name and self.name != self.email:
+            return f"{self.name} ({self.email})"
+        return self.email
+
+
+def _str(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
 
 
 @lru_cache
@@ -48,9 +63,10 @@ def _auth_client() -> Client:
 # token -> (expires_at_monotonic, AuthUser | None).
 #
 # A hit for `None` means "verified, but not on the allowlist". The short TTL is
-# the trade-off: a row pulled from `allowed_users` stops working within a
-# minute, and in return a burst of API calls from one open tab costs one round
-# trip to Supabase Auth plus one table read, not one of each per call.
+# the trade-off: a change in `allowed_users` (a new row, or a flipped
+# `is_admin`) takes effect within a minute, and in return a burst of API calls
+# from one open tab costs one round trip to Supabase Auth plus one table read,
+# not one of each per call.
 _CACHE: dict[str, tuple[float, "AuthUser | None"]] = {}
 _CACHE_TTL_SECONDS = 60
 _CACHE_MAX_ENTRIES = 512
@@ -74,8 +90,11 @@ def _cache_put(token: str, user: "AuthUser | None") -> None:
     _CACHE[token] = (time.monotonic() + _CACHE_TTL_SECONDS, user)
 
 
-def _verify_token(token: str) -> AuthUser:
-    """Ask Supabase Auth who this token belongs to. 401 if it cannot say."""
+def _verify_token(token: str) -> tuple[str, str, str]:
+    """
+    Ask Supabase Auth who this token belongs to; returns (id, email, name).
+    401 if it cannot say. The name is Google's display name, or the email.
+    """
     try:
         result = _auth_client().auth.get_user(token)
     except Exception:
@@ -85,14 +104,24 @@ def _verify_token(token: str) -> AuthUser:
     if user is None or not getattr(user, "email", None):
         raise HTTPException(status_code=401, detail="Invalid or expired session")
 
-    return AuthUser(id=str(user.id), email=user.email.lower())
+    email = user.email.lower()
+    meta = getattr(user, "user_metadata", None) or {}
+    name = _str(meta.get("full_name")) or _str(meta.get("name")) or email
+    return str(user.id), email, name
 
 
-def _is_allowed(email: str) -> bool:
+def _lookup(email: str) -> dict | None:
+    """
+    The `allowed_users` row for this email, or None if it isn't listed.
+
+    Selects `*` rather than naming `is_admin` so the app keeps working on a
+    database where the `is_admin` migration hasn't run yet — the column is then
+    simply absent and everyone reads as a non-admin until it is applied.
+    """
     response = (
-        table("allowed_users").select("email").eq("email", email).limit(1).execute()
+        table("allowed_users").select("*").eq("email", email).limit(1).execute()
     )
-    return bool(response.data)
+    return response.data[0] if response.data else None
 
 
 def _resolve(token: str) -> "AuthUser | None":
@@ -106,13 +135,26 @@ def _resolve(token: str) -> "AuthUser | None":
         return user
 
     try:
-        verified = _verify_token(token)
+        uid, email, name = _verify_token(token)
     except HTTPException:
         return None
 
-    user = verified if _is_allowed(verified.email) else None
+    row = _lookup(email)
+    user = (
+        AuthUser(id=uid, email=email, name=name, is_admin=bool(row["is_admin"]))
+        if row
+        else None
+    )
     _cache_put(token, user)
     return user
+
+
+def clear_cache() -> None:
+    """
+    Drop every cached verification. Called after an allowlist edit so a removed
+    user loses access now rather than up to a minute later.
+    """
+    _CACHE.clear()
 
 
 def bearer_token(authorization_header: str) -> str:
@@ -141,19 +183,27 @@ def require_user(request: Request) -> AuthUser:
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    # A cache miss re-runs verification below; a cache hit for `None` could mean
-    # either "bad token" or "not allowed", so an uncached token is verified
-    # once more here to tell 401 from 403.
+    # A cache hit for `None` could mean either "bad token" or "not allowed", so
+    # an uncached token is verified once more here to tell 401 from 403.
     cached, user = _cache_get(token)
     if cached:
         if user is None:
             raise HTTPException(status_code=403, detail=NOT_AUTHORIZED_DETAIL)
         return user
 
-    user = _verify_token(token)
-    if not _is_allowed(user.email):
+    uid, email, name = _verify_token(token)
+    row = _lookup(email)
+    if row is None:
         _cache_put(token, None)
         raise HTTPException(status_code=403, detail=NOT_AUTHORIZED_DETAIL)
 
+    user = AuthUser(id=uid, email=email, name=name, is_admin=bool(row["is_admin"]))
     _cache_put(token, user)
+    return user
+
+
+def require_admin(user: AuthUser = Depends(require_user)) -> AuthUser:
+    """On top of `require_user`: the account's `is_admin` flag must be set."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail=NOT_ADMIN_DETAIL)
     return user
