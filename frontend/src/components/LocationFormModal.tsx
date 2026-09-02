@@ -27,7 +27,6 @@ export function LocationFormModal({
   const rows = shell.locations.data ?? [];
 
   const [form, setForm] = useState({
-    name: location?.name ?? "",
     kind: location?.kind ?? "",
     category: location?.category ?? "",
     brigade: location?.brigade ?? "",
@@ -36,7 +35,9 @@ export function LocationFormModal({
     notes: location?.notes ?? "",
   });
   // The battalion is stored as one string but asked for in two halves, so it
-  // is held apart from the rest of the form and joined on submit.
+  // is held apart from the rest of the form and joined on submit. It is also
+  // the unit's name — a unit has no name of its own beyond its battalion
+  // number/name — so the joined value is written to `name` as well.
   const [battalion, setBattalion] = useState(() => splitUnitName(location?.battalion ?? null));
   // Categories and brigades the directory doesn't use yet: they become real
   // only once this location is saved with one selected, so until then they
@@ -71,12 +72,15 @@ export function LocationFormModal({
     setSaving(true);
     setError(null);
     try {
+      const battalionName = formatUnitName(battalion.number, battalion.name);
       const body = {
-        name: form.name.trim(),
+        // A unit is identified by its battalion, so that is its name too;
+        // fall back to the existing name for any older row saved without one.
+        name: battalionName || location?.name?.trim() || "",
         kind: form.kind.trim() || null,
         category: form.category.trim() || null,
         brigade: form.brigade.trim() || null,
-        battalion: formatUnitName(battalion.number, battalion.name) || null,
+        battalion: battalionName || null,
         contact_name: form.contact_name.trim() || null,
         contact_phone: form.contact_phone.trim() || null,
         notes: form.notes.trim() || null,
@@ -95,9 +99,6 @@ export function LocationFormModal({
     <Modal title={location ? t.locations.edit : t.locations.new} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="form-body">
-          <Field label={t.locations.name} required>
-            <input value={form.name} onChange={(e) => set("name")(e.target.value)} required autoFocus />
-          </Field>
           <Field label={t.locations.kind}>
             <input
               value={form.kind}
@@ -135,11 +136,14 @@ export function LocationFormModal({
 
           {/* The battalion has no list to pick from — a unit's own number or
               name is new nearly every time — so its two halves are asked for
-              directly, and joined into the stored format on save. */}
+              directly, and joined into the stored format on save. That joined
+              value is the unit's name as well, so it stands in for a name
+              field of its own. */}
           <Field label={t.locations.battalionNumber} hint={t.locations.numberOrName}>
             <input
               value={battalion.number}
               inputMode="numeric"
+              autoFocus
               onChange={(e) => setBattalion((prev) => ({ ...prev, number: e.target.value }))}
             />
           </Field>
@@ -162,7 +166,11 @@ export function LocationFormModal({
           )}
         </div>
 
-        <FormActions saving={saving} disabled={!form.name.trim()} onCancel={onClose} />
+        <FormActions
+          saving={saving}
+          disabled={!formatUnitName(battalion.number, battalion.name) && !location?.name}
+          onCancel={onClose}
+        />
       </form>
 
       {location && <ContactsPanel locationId={location.id} />}
