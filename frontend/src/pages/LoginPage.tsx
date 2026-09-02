@@ -5,20 +5,17 @@ import { t } from "../i18n";
 /**
  * Sign-in screen. One way in: Google, via Supabase Auth.
  *
- *  - signed out        → the Google button
- *  - checking          → session in hand, waiting on the allowlist check
- *  - blocked           → signed in with an account that isn't authorized
+ *  - signed out  → the Google button
+ *  - blocked     → signed in with an account that isn't on the allowlist
  */
 export default function LoginPage({
   onGoogle,
   onSignOut,
-  checking,
   blocked,
   blockedReason,
 }: {
   onGoogle: () => void;
   onSignOut: () => void;
-  checking: boolean;
   blocked: boolean;
   /** The server's message when the allowlist check failed, if any. */
   blockedReason?: string | null;
@@ -47,13 +44,8 @@ export default function LoginPage({
                 {t.shell.signOut}
               </button>
             ) : (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={onGoogle}
-                disabled={checking}
-              >
-                {checking ? t.auth.checking : t.auth.googleSignIn}
+              <button type="button" className="btn btn-primary" onClick={onGoogle}>
+                {t.auth.googleSignIn}
               </button>
             )}
           </div>

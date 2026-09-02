@@ -71,10 +71,17 @@ export function useSession() {
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       if (!active) return;
-      setSession(next);
-      setAuthorized(null); // re-check against the allowlist on any change
-      setAuthError(null);
-      setIsAdmin(false);
+      // Supabase fires this for token refreshes and window-focus events too,
+      // each with a brand-new Session object for the *same* user. Swapping it
+      // into state there would re-run the /api/me check and, mid-flight, drop
+      // `authorized` — bouncing the whole shell back through /login and losing
+      // the screen you were on. So keep the previous object unless the user
+      // actually changed or signed out. API calls always read a fresh token
+      // straight from the SDK (see api.ts), so a stale object here is harmless.
+      setSession((prev) => {
+        if (prev && next && prev.user.id === next.user.id) return prev;
+        return next;
+      });
     });
 
     return () => {
@@ -83,9 +90,15 @@ export function useSession() {
     };
   }, []);
 
+  // Keyed on the user id, not the Session object: the allowlist check runs once
+  // per real sign-in, not on every token refresh.
+  const userId = session?.user?.id ?? null;
+
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setAuthorized(null);
+      setAuthError(null);
+      setIsAdmin(false);
       return;
     }
     let active = true;
@@ -106,7 +119,7 @@ export function useSession() {
     return () => {
       active = false;
     };
-  }, [session]);
+  }, [userId]);
 
   const signInWithGoogle = useCallback(async () => {
     await supabase.auth.signInWithOAuth({

@@ -37,13 +37,17 @@ export default function App() {
   // login screen before it resolves.
   if (loading) return null;
 
+  // Signed in with Google, allowlist check still in flight: hold here rather
+  // than routing to /login — that would replace the URL and drop the screen
+  // the user reloaded on (or was sitting on when the token refreshed).
+  if (user && authorized === null) return null;
+
   const ready = !!user && authorized === true;
 
   const login = (
     <LoginPage
       onGoogle={signInWithGoogle}
       onSignOut={signOut}
-      checking={!!user && authorized === null}
       blocked={!!user && authorized === false}
       blockedReason={authError}
     />
