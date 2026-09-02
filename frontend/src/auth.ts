@@ -47,6 +47,9 @@ export function useSession() {
   const [loading, setLoading] = useState(true);
   // null = not checked yet, true/false = the backend's answer.
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  // The server's own message when the /api/me check fails — "not on the
+  // allowlist" reads differently from "the backend rejected the token".
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -68,6 +71,7 @@ export function useSession() {
       if (!active) return;
       setSession(next);
       setAuthorized(null); // re-check against the allowlist on any change
+      setAuthError(null);
     });
 
     return () => {
@@ -84,8 +88,16 @@ export function useSession() {
     let active = true;
     api.auth
       .me()
-      .then(() => active && setAuthorized(true))
-      .catch(() => active && setAuthorized(false));
+      .then(() => {
+        if (!active) return;
+        setAuthorized(true);
+        setAuthError(null);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        setAuthorized(false);
+        setAuthError(err instanceof Error ? err.message : String(err));
+      });
     return () => {
       active = false;
     };
@@ -102,7 +114,7 @@ export function useSession() {
     await supabase.auth.signOut();
   }, []);
 
-  return { user: toUser(session), loading, authorized, signInWithGoogle, signOut };
+  return { user: toUser(session), loading, authorized, authError, signInWithGoogle, signOut };
 }
 
 /** "ליאור ברגמן" → "ל.ב" — the two-letter monogram in the nav bar avatar. */

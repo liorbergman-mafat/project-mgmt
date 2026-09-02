@@ -14,11 +14,14 @@ export default function LoginPage({
   onSignOut,
   checking,
   blocked,
+  blockedReason,
 }: {
   onGoogle: () => void;
   onSignOut: () => void;
   checking: boolean;
   blocked: boolean;
+  /** The server's message when the allowlist check failed, if any. */
+  blockedReason?: string | null;
 }) {
   return (
     <div className="login">
@@ -36,7 +39,7 @@ export default function LoginPage({
 
           <p className="login-sub">{t.auth.subtitle}</p>
 
-          {blocked && <ErrorBanner error={t.auth.notAuthorized} />}
+          {blocked && <ErrorBanner error={blockedReason || t.auth.notAuthorized} />}
 
           <div className="login-fields">
             {blocked ? (

@@ -36,8 +36,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  if (response.status === 401) {
-    // The session is gone or expired — drop it so the app returns to /login.
+  if (response.status === 401 && path !== "/me") {
+    // A 401 on a normal call means the session expired mid-use — drop it so the
+    // app returns to /login. `/me` is the post-sign-in allowlist probe;
+    // auth.ts decides what a failure there means (a "not authorized" screen),
+    // and tearing the session down here would just loop back to sign-in.
     await supabase.auth.signOut();
   }
 

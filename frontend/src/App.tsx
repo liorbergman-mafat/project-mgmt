@@ -27,7 +27,7 @@ import ActivityPage from "./pages/ActivityPage";
 import type { ProjectSummary } from "./types";
 
 export default function App() {
-  const { user, loading, authorized, signInWithGoogle, signOut } = useSession();
+  const { user, loading, authorized, authError, signInWithGoogle, signOut } = useSession();
 
   // No Supabase env in this build — sign-in cannot work. Say so instead of
   // rendering a login screen whose button does nothing.
@@ -45,6 +45,7 @@ export default function App() {
       onSignOut={signOut}
       checking={!!user && authorized === null}
       blocked={!!user && authorized === false}
+      blockedReason={authError}
     />
   );
 
