@@ -141,7 +141,7 @@ def _resolve(token: str) -> "AuthUser | None":
 
     row = _lookup(email)
     user = (
-        AuthUser(id=uid, email=email, name=name, is_admin=bool(row["is_admin"]))
+        AuthUser(id=uid, email=email, name=name, is_admin=bool(row.get("is_admin")))
         if row
         else None
     )
@@ -197,7 +197,7 @@ def require_user(request: Request) -> AuthUser:
         _cache_put(token, None)
         raise HTTPException(status_code=403, detail=NOT_AUTHORIZED_DETAIL)
 
-    user = AuthUser(id=uid, email=email, name=name, is_admin=bool(row["is_admin"]))
+    user = AuthUser(id=uid, email=email, name=name, is_admin=bool(row.get("is_admin")))
     _cache_put(token, user)
     return user
 
