@@ -4,6 +4,7 @@ import { NavLink, Navigate, Route, Routes, useLocation, useMatch } from "react-r
 import { api } from "./api";
 import { initials, useSession } from "./auth";
 import type { SessionUser } from "./auth";
+import { useIdleLogout } from "./idle";
 import { supabaseConfigured } from "./supabase";
 import { ParentMark } from "./components/ParentMark";
 import {
@@ -28,6 +29,9 @@ import type { ProjectSummary } from "./types";
 
 export default function App() {
   const { user, loading, authorized, authError, isAdmin, signInWithGoogle, signOut } = useSession();
+
+  // End the session after 15 minutes with no interaction in any tab.
+  useIdleLogout(!!user, signOut);
 
   // No Supabase env in this build — sign-in cannot work. Say so instead of
   // rendering a login screen whose button does nothing.

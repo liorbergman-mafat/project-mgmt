@@ -46,6 +46,7 @@ export const t = {
     googleSignIn: "התחברות עם Google",
     checking: "מאמת הרשאה…",
     notAuthorized: "החשבון שאיתו התחברת אינו מורשה לשימוש במערכת. פנה למנהל המערכת.",
+    idleLogout: "התנתקת עקב חוסר פעילות. יש להתחבר מחדש.",
     note: "כל הפעולות במערכת נרשמות ומשויכות למשתמש.",
     /** The avatar's tooltip / the line under the name in the nav footer. */
     role: "משתמש מערכת",

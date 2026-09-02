@@ -1,6 +1,21 @@
+import { useState } from "react";
 import { ParentMark } from "../components/ParentMark";
 import { ErrorBanner } from "../components/ui";
+import { IDLE_FLAG_KEY } from "../idle";
 import { t } from "../i18n";
+
+/** Read (and clear) the "you were logged out for being idle" flag, once. */
+function readIdleFlag(): boolean {
+  try {
+    if (sessionStorage.getItem(IDLE_FLAG_KEY)) {
+      sessionStorage.removeItem(IDLE_FLAG_KEY);
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
 
 /**
  * Sign-in screen. One way in: Google, via Supabase Auth.
@@ -20,6 +35,8 @@ export default function LoginPage({
   /** The server's message when the allowlist check failed, if any. */
   blockedReason?: string | null;
 }) {
+  const [idleLogout] = useState(readIdleFlag);
+
   return (
     <div className="login">
       <div className="login-form-pane">
@@ -36,7 +53,11 @@ export default function LoginPage({
 
           <p className="login-sub">{t.auth.subtitle}</p>
 
-          {blocked && <ErrorBanner error={blockedReason || t.auth.notAuthorized} />}
+          {blocked ? (
+            <ErrorBanner error={blockedReason || t.auth.notAuthorized} />
+          ) : (
+            idleLogout && <p className="login-note">{t.auth.idleLogout}</p>
+          )}
 
           <div className="login-fields">
             {blocked ? (
