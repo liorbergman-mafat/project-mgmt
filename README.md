@@ -145,17 +145,11 @@ you land on a "not authorized" screen instead of the app — an admin adds the
 email from the **הרשאות** screen (or `insert into allowed_users (email) values
 (...)` in Supabase), and you sign in again. See [Security](#security).
 
-The sidebar on the right holds the screens; your name and the sign-out button
-sit at the foot of it, and the bar across the top says where you are.
+The sidebar on the right holds the four main screens; your name, a **gear**
+(**הגדרות**) and the sign-out button sit at the foot of it, and the bar across
+the top says where you are.
 
-1. **הגדרות** — set up the dropdown option lists once, across three tabs:
-   - **ציוד** — the catalogue: every Type, with its Models nested under it.
-     Expand a type to see, add, edit or delete its models.
-   - **סטטוסים** — the Status options.
-   - **מיקומים** — units, warehouses, anywhere an item can be. This is the
-     **only** place a location can be created or edited; the מיקומים screen in
-     the sidebar is a read-only directory.
-2. **פרויקטים** — the landing screen: four summary tiles over a table with one
+1. **פרויקטים** — the landing screen: four summary tiles over a table with one
    row per project — its item, loan, open-loan and feedback counts, and when it
    last changed. **פעילים / בארכיון** switches which set you are looking at.
    Open a project for three tabs:
@@ -164,20 +158,23 @@ sit at the foot of it, and the bar across the top says where you are.
    - **השאלות** — **+ השאלה חדשה** records one of the project's items loaned to
      a location.
    - **משוב** — **+ משוב חדש** records what a location said, and when.
-3. **מיקומים** — the directory: every unit and warehouse, bucketed by brigade.
+2. **מיקומים** — the directory: every unit and warehouse, bucketed by brigade.
    The buckets open shut — 243 units across 71 brigades is a wall of rows — and
    each one still carries its totals while collapsed. Expand one and select a
    row to open a panel with its contact, its stock by type and model, and its
    latest feedback.
-4. **משוב מהיחידות** — every project's feedback in one feed, filterable by low
+3. **משוב מהיחידות** — every project's feedback in one feed, filterable by low
    ratings, this month, or unrated, with this month's volume and the average
    rating per equipment category in the rail beside it.
-5. **פעולות** — every change anyone has made, in Hebrew: when, who (the Google
-   name and email), what kind of action, and which record. Written
-   automatically; nothing can edit it. Any signed-in user may read it.
-6. **הרשאות** *(admins only)* — the allowlist: add or remove the emails that may
-   use the app, and toggle who is an admin. An admin may edit this list; it
-   grants nothing else. The last admin cannot be removed or demoted.
+
+The **gear** at the foot of the nav opens **הגדרות**, with up to two tabs:
+
+- **פעולות** — every change anyone has made, in Hebrew: when, who (the Google
+  name and email), what kind of action, and which record. Sign-ins are logged
+  too. Written automatically; nothing can edit it. Any signed-in user may read it.
+- **הרשאות** *(admins only)* — the allowlist: add or remove the emails that may
+  use the app, and toggle who is an admin. An admin may edit this list; it
+  grants nothing else. The last admin cannot be removed or demoted.
 
 **סמן כהוחזר** closes a loan and stamps the return time.
 
