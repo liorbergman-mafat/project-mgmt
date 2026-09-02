@@ -239,6 +239,8 @@ export const t = {
 
     name: "שם",
     kind: "סוג יחידה",
+    selectKind: "בחר סוג",
+    kindOptions: ["יחידה", "מחסן"],
     category: "קטגוריה",
     /** The chip for units saved without one — the filter has no "all". */
     noCategory: "ללא קטגוריה",

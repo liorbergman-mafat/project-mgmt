@@ -67,12 +67,20 @@ export function LocationFormModal({
     return withValue(options(inCategory, (row) => row.brigade), addedBrigades, form.brigade);
   }, [rows, addedBrigades, form.category, form.brigade]);
 
+  // A "יחידה" files under a category and a brigade; a "מחסן" needn't.
+  const [unitKind] = t.locations.kindOptions;
+  const isUnit = form.kind === unitKind;
+  const battalionName = formatUnitName(battalion.number, battalion.name);
+  const valid =
+    Boolean(form.kind) &&
+    Boolean(battalionName || location?.name) &&
+    (!isUnit || (Boolean(form.category.trim()) && Boolean(form.brigade.trim())));
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      const battalionName = formatUnitName(battalion.number, battalion.name);
       const body = {
         // A unit is identified by its battalion, so that is its name too;
         // fall back to the existing name for any older row saved without one.
@@ -99,15 +107,18 @@ export function LocationFormModal({
     <Modal title={location ? t.locations.edit : t.locations.new} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="form-body">
-          <Field label={t.locations.kind}>
-            <input
-              value={form.kind}
-              onChange={(e) => set("kind")(e.target.value)}
-              placeholder="יחידה / מחסן"
-            />
+          <Field label={t.locations.kind} required>
+            <select value={form.kind} onChange={(e) => set("kind")(e.target.value)}>
+              <option value="">{t.locations.selectKind}</option>
+              {withValue(t.locations.kindOptions, [], form.kind).map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </Field>
 
-          <Field label={t.locations.category}>
+          <Field label={t.locations.category} required={isUnit}>
             <Picker
               value={form.category}
               onChange={(value) => {
@@ -123,7 +134,7 @@ export function LocationFormModal({
             />
           </Field>
 
-          <Field label={t.locations.brigade}>
+          <Field label={t.locations.brigade} required={isUnit}>
             <Picker
               value={form.brigade}
               onChange={set("brigade")}
@@ -139,7 +150,7 @@ export function LocationFormModal({
               directly, and joined into the stored format on save. That joined
               value is the unit's name as well, so it stands in for a name
               field of its own. */}
-          <Field label={t.locations.battalionNumber} hint={t.locations.numberOrName}>
+          <Field label={t.locations.battalionNumber}>
             <input
               value={battalion.number}
               inputMode="numeric"
@@ -166,11 +177,7 @@ export function LocationFormModal({
           )}
         </div>
 
-        <FormActions
-          saving={saving}
-          disabled={!formatUnitName(battalion.number, battalion.name) && !location?.name}
-          onCancel={onClose}
-        />
+        <FormActions saving={saving} disabled={!valid} onCancel={onClose} />
       </form>
 
       {location && <ContactsPanel locationId={location.id} />}
@@ -209,7 +216,7 @@ export function LocationFormModal({
 }
 
 /** The directory's own values, plus what this form added, plus the row's own. */
-function withValue(existing: string[], added: string[], current: string): string[] {
+function withValue(existing: readonly string[], added: readonly string[], current: string): string[] {
   const seen = new Set(existing);
   const extra: string[] = [];
   for (const value of [...added, current]) {
