@@ -48,8 +48,9 @@ export const t = {
     checking: "מאמת הרשאה…",
     notAuthorized: "החשבון שאיתו התחברת אינו מורשה לשימוש במערכת. פנה למנהל המערכת.",
     note: "כל הפעולות במערכת נרשמות ומשויכות למשתמש.",
-    /** The avatar's tooltip — the role isn't stored anywhere to read a real one from. */
+    /** The avatar's tooltip / the line under the name in the nav footer. */
     role: "משתמש מערכת",
+    adminRole: "מנהל מערכת",
   },
 
   projects: {
@@ -320,12 +321,14 @@ export const t = {
     /** The chip row above the table. Keys match the action keys below. */
     filters: {
       all: "הכול",
+      login: "כניסות",
       create: "הוספות",
       update: "עדכונים",
       delete: "מחיקות",
     },
     /** The API records stable keys; these are the words the screen shows. */
     actions: {
+      login: "כניסה למערכת",
       create: "הוספה",
       update: "עדכון",
       delete: "מחיקה",
@@ -345,6 +348,7 @@ export const t = {
       loans: "השאלה",
       feedback: "משוב",
       "allowed-users": "משתמש מורשה",
+      auth: "התחברות",
     } as const,
     /** Nothing technical ever reaches the screen — an unknown key reads plainly. */
     unknownAction: "פעולה",

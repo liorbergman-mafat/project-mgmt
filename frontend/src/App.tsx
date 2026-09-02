@@ -102,6 +102,8 @@ function Shell({
   // nav count too.
   const activeProjects = (projects.data ?? []).filter((p) => p.status !== "archived");
 
+  const role = isAdmin ? t.auth.adminRole : t.auth.role;
+
   return (
     <ShellProvider value={shell}>
       <div className="app">
@@ -155,13 +157,12 @@ function Shell({
           </nav>
 
           <div className="sidebar-footer">
-            {/* The role is the only thing the footer has no room to spell out. */}
-            <span className="avatar" title={t.auth.role} aria-hidden="true">
+            <span className="avatar" title={role} aria-hidden="true">
               {initials(user.name)}
             </span>
             <div className="user">
               <div className="user-name">{user.name}</div>
-              <div className="user-role">{t.auth.role}</div>
+              <div className="user-role">{role}</div>
             </div>
             <button
               type="button"

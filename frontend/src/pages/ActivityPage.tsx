@@ -18,6 +18,7 @@ const ALL = "__all__";
 
 /** Colour by how consequential the action is, not by which one it is. */
 const ACTION_TONE: Record<string, Tone> = {
+  login: "grey",
   create: "green",
   update: "teal",
   delete: "red",
@@ -59,6 +60,7 @@ export default function ActivityPage() {
 
   const filters = [
     { key: ALL, label: t.activity.filters.all },
+    { key: "login", label: t.activity.filters.login },
     { key: "create", label: t.activity.filters.create },
     { key: "update", label: t.activity.filters.update },
     { key: "delete", label: t.activity.filters.delete },
@@ -133,7 +135,8 @@ export default function ActivityPage() {
 }
 
 function ActivityRow({ entry }: { entry: ActivityEntry }) {
-  const subject = entityLabel(entry.entity);
+  // Signing in is not done *to* anything, so it has no subject to name.
+  const subject = entry.entity === "auth" ? null : entityLabel(entry.entity);
 
   return (
     <tr>
@@ -147,8 +150,14 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
         <Pill tone={ACTION_TONE[entry.action] ?? "grey"}>{actionLabel(entry.action)}</Pill>
       </td>
       <td>
-        <span>{subject}</span>
-        {entry.label && <span className="subject-label">{entry.label}</span>}
+        {subject ? (
+          <>
+            <span>{subject}</span>
+            {entry.label && <span className="subject-label">{entry.label}</span>}
+          </>
+        ) : (
+          <span className="muted">{t.common.none}</span>
+        )}
       </td>
     </tr>
   );

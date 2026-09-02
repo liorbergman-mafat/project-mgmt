@@ -74,6 +74,8 @@ export const api = {
     /** Resolves if the signed-in account is on the allowlist; rejects (403) otherwise. */
     me: () =>
       request<{ id: string; email: string; name: string; is_admin: boolean }>("/me"),
+    /** Records a "login" row in the activity log. Called once per browser session. */
+    session: () => post<void>("/auth/session"),
   },
   projects: {
     list: () => request<ProjectSummary[]>("/projects"),

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from postgrest.exceptions import APIError
 
-from .activity import ActivityMiddleware
+from .activity import ActivityMiddleware, record_login
 from .auth import AuthUser, require_user
 from .config import get_settings
 from .routers import (
@@ -110,6 +110,16 @@ def me(user: AuthUser = Depends(require_user)) -> dict[str, object]:
     the "not authorized" screen, and reads `is_admin` to show the הרשאות screen.
     """
     return {"id": user.id, "email": user.email, "name": user.name, "is_admin": user.is_admin}
+
+
+@app.post("/api/auth/session", status_code=204, tags=["meta"])
+def record_session(user: AuthUser = Depends(require_user)) -> None:
+    """
+    Records a "login" row in the activity log. The frontend calls this once per
+    browser session right after sign-in — the backend never sees the Google
+    OAuth round-trip itself, so this is the only point a sign-in can be logged.
+    """
+    record_login(user.actor)
 
 
 # Every data router is gated: a valid Supabase token whose email is in

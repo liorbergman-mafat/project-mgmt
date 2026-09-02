@@ -211,6 +211,20 @@ def _record(entry: dict[str, Any]) -> None:
     table("activity_log").insert(entry).execute()
 
 
+def record_login(actor: str | None) -> None:
+    """
+    Write one "login" row. The backend never sees the Google OAuth round-trip,
+    so the frontend calls POST /api/auth/session once per browser session and
+    this records it. Best-effort — a failed log never fails the request.
+    """
+    try:
+        table("activity_log").insert(
+            {"actor": actor, "action": "login", "entity": "auth"}
+        ).execute()
+    except Exception:  # noqa: BLE001 — a broken log must not break sign-in
+        pass
+
+
 def _is_uuid(value: str) -> bool:
     try:
         UUID(value)

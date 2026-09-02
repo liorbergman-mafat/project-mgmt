@@ -96,6 +96,7 @@ export function useSession() {
         setAuthorized(true);
         setAuthError(null);
         setIsAdmin(me.is_admin);
+        logSessionOnce();
       })
       .catch((err: unknown) => {
         if (!active) return;
@@ -127,6 +128,22 @@ export function useSession() {
     signInWithGoogle,
     signOut,
   };
+}
+
+/**
+ * Tell the API to record a "login" activity row, once per browser session —
+ * the backend never sees the OAuth round-trip, so this is the only signal it
+ * gets that someone signed in. sessionStorage clears when the tab closes, so
+ * reopening the app counts as a new login. All of it is best-effort.
+ */
+function logSessionOnce(): void {
+  try {
+    if (sessionStorage.getItem("lm.session-logged")) return;
+    sessionStorage.setItem("lm.session-logged", "1");
+  } catch {
+    return; // storage blocked — skip rather than log on every mount
+  }
+  api.auth.session().catch(() => {});
 }
 
 /** "ליאור ברגמן" → "ל.ב" — the two-letter monogram in the nav bar avatar. */
