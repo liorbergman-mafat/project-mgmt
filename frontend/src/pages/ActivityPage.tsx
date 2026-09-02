@@ -9,8 +9,8 @@ import type { ActivityEntry } from "../types";
 
 /* ========================================================================
  * Activity — every recorded change, in Hebrew, with the person who made it.
- * Its own screen now, reached from the nav bar; any signed-in user may read
- * it. The entries are written by the API middleware, never by a screen.
+ * The פעולות tab of the Settings screen; any signed-in user may read it.
+ * The entries are written by the API middleware, never by a screen.
  * ===================================================================== */
 
 /** The chips above the table. "all" is the off switch, not an action. */
@@ -68,13 +68,6 @@ export default function ActivityPage() {
 
   return (
     <>
-      <header className="page-header">
-        <div>
-          <h1>{t.activity.title}</h1>
-          <p className="subtitle">{t.activity.subtitle}</p>
-        </div>
-      </header>
-
       <div className="pane-header">
         <span className="section-label">{t.activity.title}</span>
         <span className="record-count">{t.common.records(visible.length)}</span>

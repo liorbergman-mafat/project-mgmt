@@ -9,8 +9,7 @@ export const t = {
     equipment: "ציוד",
     locations: "יחידות",
     feedback: "משוב מהיחידות",
-    activity: "פעולות",
-    access: "הרשאות",
+    settings: "הגדרות",
   },
 
   common: {
@@ -303,8 +302,20 @@ export const t = {
   },
 
   /* ======================================================================
-   * Activity — its own screen, reached from the nav bar. Visible to any
-   * signed-in user.
+   * Settings — reached from the gear at the foot of the nav bar. Holds the
+   * activity log (everyone) and the allowlist (admins only).
+   * =================================================================== */
+  settings: {
+    title: "הגדרות",
+    subtitle: "יומן הפעולות של המערכת וניהול ההרשאות",
+    tabs: {
+      activity: "פעולות",
+      access: "הרשאות",
+    },
+  },
+
+  /* ======================================================================
+   * Activity — a tab under Settings. Visible to any signed-in user.
    * =================================================================== */
   activity: {
     title: "פעולות",

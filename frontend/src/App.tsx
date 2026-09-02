@@ -7,13 +7,12 @@ import type { SessionUser } from "./auth";
 import { supabaseConfigured } from "./supabase";
 import { ParentMark } from "./components/ParentMark";
 import {
-  ActivityIcon,
   EquipmentIcon,
   FeedbackIcon,
   LocationsIcon,
   ProjectsIcon,
+  SettingsIcon,
   SignOutIcon,
-  UsersIcon,
 } from "./components/icons";
 import { useAsync } from "./hooks";
 import { t } from "./i18n";
@@ -24,8 +23,7 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import EquipmentPage from "./pages/EquipmentPage";
 import { LocationsPage, LocationDetailPage } from "./pages/LocationsPage";
 import FeedbackPage from "./pages/FeedbackPage";
-import ActivityPage from "./pages/ActivityPage";
-import AccessPage from "./pages/AccessPage";
+import SettingsPage from "./pages/SettingsPage";
 import type { ProjectSummary } from "./types";
 
 export default function App() {
@@ -142,18 +140,6 @@ function Shell({
               count={(feedback.data ?? []).length}
               icon={<FeedbackIcon size={17} />}
             />
-            <NavItem
-              to="/activity"
-              label={t.nav.activity}
-              icon={<ActivityIcon size={17} />}
-            />
-            {isAdmin && (
-              <NavItem
-                to="/access"
-                label={t.nav.access}
-                icon={<UsersIcon size={17} />}
-              />
-            )}
           </nav>
 
           <div className="sidebar-footer">
@@ -164,6 +150,16 @@ function Shell({
               <div className="user-name">{user.name}</div>
               <div className="user-role">{role}</div>
             </div>
+            {/* Settings and sign-out are the two things you do *to* the
+                session rather than inside it, so they share its corner. */}
+            <NavLink
+              to="/settings"
+              className={({ isActive }) => `footer-btn${isActive ? " active" : ""}`}
+              title={t.nav.settings}
+              aria-label={t.nav.settings}
+            >
+              <SettingsIcon />
+            </NavLink>
             <button
               type="button"
               className="footer-btn"
@@ -195,19 +191,16 @@ function Shell({
               <Route path="/locations" element={<LocationsPage />} />
               <Route path="/locations/:locationId" element={<LocationDetailPage />} />
               <Route path="/feedback" element={<FeedbackPage />} />
-              <Route path="/activity" element={<ActivityPage />} />
-              {/* Admin-only; the API enforces it too. A non-admin who types the
-                  address just goes back to the landing screen. */}
-              <Route
-                path="/access"
-                element={isAdmin ? <AccessPage /> : <Navigate to="/projects" replace />}
-              />
+              {/* One component behind both tabs — see SettingsPage. The
+                  allowlist tab guards itself; the API enforces it for real. */}
+              <Route path="/settings" element={<Navigate to="/settings/activity" replace />} />
+              <Route path="/settings/*" element={<SettingsPage />} />
+              {/* Old standalone paths, kept so existing links still land. */}
+              <Route path="/activity" element={<Navigate to="/settings/activity" replace />} />
+              <Route path="/access" element={<Navigate to="/settings/access" replace />} />
               {/* The units routes moved to /locations when it became a screen of its own. */}
               <Route path="/units" element={<Navigate to="/locations" replace />} />
               <Route path="/units/:locationId" element={<Navigate to="/locations" replace />} />
-              {/* Equipment, locations and statuses each moved out to a screen
-                  of their own; user management went away with password sign-in. */}
-              <Route path="/settings/*" element={<Navigate to="/activity" replace />} />
             </Routes>
           </main>
         </div>
@@ -231,15 +224,17 @@ function Breadcrumb({ projects }: { projects: ProjectSummary[] | null }) {
     section === "equipment" ? t.nav.equipment
     : section === "locations" ? t.nav.locations
     : section === "feedback" ? t.nav.feedback
-    : section === "activity" ? t.nav.activity
-    : section === "access" ? t.nav.access
+    : section === "settings" ? t.nav.settings
     : t.nav.projects;
 
-  // Only the project screen has a leaf: its name comes off the list the shell
-  // already fetched rather than a second request, so while that list is still
-  // in flight the crumb is just the section and fills in when it lands.
-  const leaf = project
-    ? ((projects ?? []).find((p) => p.id === project.params.projectId)?.name ?? "")
+  // Only the project screen and Settings have a leaf. The project's name comes
+  // off the list the shell already fetched rather than a second request, so
+  // while that list is still in flight the crumb is just the section.
+  const leaf =
+    project ? ((projects ?? []).find((p) => p.id === project.params.projectId)?.name ?? "")
+    : section === "settings" ?
+      pathname.endsWith("/access") ? t.settings.tabs.access
+      : t.settings.tabs.activity
     : "";
 
   return (

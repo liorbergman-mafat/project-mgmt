@@ -18,8 +18,9 @@ import {
 import type { AllowedUser } from "../types";
 
 /* ========================================================================
- * הרשאות — the authorization allowlist. Admin-only (the API enforces it too).
- * Sign-in itself is Google; this decides who, once signed in, may use the app.
+ * הרשאות — the authorization allowlist. The הרשאות tab of the Settings
+ * screen, admins only (the API enforces it too). Sign-in itself is Google;
+ * this decides who, once signed in, may use the app.
  * ===================================================================== */
 export default function AccessPage() {
   const { user } = useShell();
@@ -55,13 +56,6 @@ export default function AccessPage() {
 
   return (
     <>
-      <header className="page-header">
-        <div>
-          <h1>{t.access.title}</h1>
-          <p className="subtitle">{t.access.subtitle}</p>
-        </div>
-      </header>
-
       <div className="pane-header">
         <span className="section-label">{t.access.sectionLabel}</span>
         <span className="record-count">{t.common.records(list.length)}</span>
